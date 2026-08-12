@@ -1,0 +1,10 @@
+[
+  { "key": "1", "id": "CUST-001", "name": "Alice Johnson", "email": "alice@example.com", "phone": "+1 234 567 890", "plan": "Premium", "status": "active", "lastLogin": "2 hours ago", "color": "#1677ff" },
+  { "key": "2", "id": "CUST-002", "name": "Bob Wilson", "email": "bob@example.com", "phone": "+1 345 678 901", "plan": "Basic", "status": "active", "lastLogin": "1 day ago", "color": "#722ed1" },
+  { "key": "3", "id": "CUST-003", "name": "Carol Smith", "email": "carol@example.com", "phone": "+1 456 789 012", "plan": "Premium", "status": "inactive", "lastLogin": "1 month ago", "color": "#eb2f96" },
+  { "key": "4", "id": "CUST-004", "name": "David Brown", "email": "david@example.com", "phone": "+1 567 890 123", "plan": "Professional", "status": "active", "lastLogin": "5 mins ago", "color": "#fa8c16" },
+  { "key": "5", "id": "CUST-005", "name": "Eva Green", "email": "eva@example.com", "phone": "+1 678 901 234", "plan": "Basic", "status": "active", "lastLogin": "10 mins ago", "color": "#52c41a" },
+  { "key": "6", "id": "CUST-006", "name": "Frank Miller", "email": "frank@example.com", "phone": "+1 789 012 345", "plan": "Professional", "status": "active", "lastLogin": "1 hour ago", "color": "#f5222d" },
+  { "key": "7", "id": "CUST-007", "name": "Grace Lee", "email": "grace@example.com", "phone": "+1 890 123 456", "plan": "Basic", "status": "inactive", "lastLogin": "2 days ago", "color": "#13c2c2" },
+  { "key": "8", "id": "CUST-008", "name": "Harry Potter", "email": "harry@hogwarts.edu", "phone": "+44 123 456 789", "plan": "Premium", "status": "active", "lastLogin": "5 secs ago", "color": "#722ed1" }
+]

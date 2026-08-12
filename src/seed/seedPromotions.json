@@ -1,0 +1,87 @@
+{
+  "visualPresets": [
+    { "id": "preset_green", "name": "Sinh Thái Green", "icon": "Gift", "background": "#f6ffed", "border": "1px solid #b7eb8f", "color": "#52c41a" },
+    { "id": "preset_blue", "name": "Đặc Quyền Blue", "icon": "Sparkles", "background": "#e6f7ff", "border": "1px solid #91d5ff", "color": "#1890ff" },
+    { "id": "preset_orange", "name": "Hỏa Tốc Orange", "icon": "Zap", "background": "#fff2e8", "border": "1px solid #ffbb96", "color": "#fa541c" },
+    { "id": "preset_purple", "name": "Khai Trương Purple", "icon": "PartyPopper", "background": "#f9f0ff", "border": "1px solid #d3adf7", "color": "#722ed1" },
+    { "id": "preset_magenta", "name": "Tiền Mặt Magenta", "icon": "CornerDownRight", "background": "#fff0f6", "border": "1px solid #ffadd2", "color": "#eb2f96" },
+    { "id": "preset_gold_a", "name": "Premium Hạng A", "icon": "A", "background": "#fffbe6", "border": "1px solid #ffe58f", "color": "#d48806" },
+    { "id": "preset_silver_b", "name": "Ưu Đãi Hạng B", "icon": "B", "background": "#f5f5f5", "border": "1px solid #d9d9d9", "color": "#595959" },
+    { "id": "preset_cyan_1", "name": "Nhóm Hotkey 1", "icon": "1", "background": "#e6fffb", "border": "1px solid #87e8de", "color": "#13c2c2" }
+  ],
+  "consoleMenus": [
+    {
+      "key": "products",
+      "title": "Catalog Hàng hóa",
+      "icon": "ShoppingCart",
+      "background": "#f0f5ff",
+      "border": "1px solid #adc6ff",
+      "color": "#2f54eb",
+      "description": "F2-Tra cứu mặt hàng & Sim-Scan",
+      "type": "action",
+      "actionView": "products_catalog"
+    },
+    {
+      "key": "customers",
+      "title": "Thành viên & Loyalty",
+      "icon": "Users",
+      "background": "#f6ffed",
+      "border": "1px solid #b7eb8f",
+      "color": "#52c41a",
+      "description": "Phân hạng và code sinh nhật",
+      "type": "action",
+      "actionView": "customer_loyalty"
+    },
+    {
+      "key": "promotions",
+      "title": "Chương trình Khuyến mãi",
+      "icon": "Percent",
+      "background": "#fff2e8",
+      "border": "1px solid #ffbb96",
+      "color": "#fa541c",
+      "description": "Ưu đãi theo bill, mã hàng, nhân viên, quản lý",
+      "type": "folder",
+      "children": [
+        {
+          "key": "system",
+          "title": "CTKM Hệ thống",
+          "icon": "Gift",
+          "background": "#e6f7ff",
+          "border": "1px solid #91d5ff",
+          "color": "#1890ff",
+          "description": "Khuyến mãi toàn hệ thống",
+          "type": "action",
+          "actionView": "promo_system"
+        }
+      ]
+    }
+  ],
+  "promotionsList": [
+    {
+      "key": "promo-1",
+      "code": "KM-HE2024",
+      "title": "Giảm 10% Hè 2024",
+      "type": "BILL_PERCENT",
+      "discountValue": 10,
+      "minBillAmount": 500000,
+      "maxDiscountAmount": 100000,
+      "status": "active",
+      "startDate": "2026-06-01",
+      "endDate": "2026-08-31",
+      "description": "Chương trình giảm giá 10% cho hóa đơn từ 500.000 VNĐ"
+    },
+    {
+      "key": "promo-2",
+      "code": "KM-MUA1TANG1",
+      "title": "Mua 1 Tặng 1 Dép Slide",
+      "type": "BUY_X_GET_Y",
+      "discountValue": 100,
+      "minBillAmount": 220000,
+      "maxDiscountAmount": 220000,
+      "status": "active",
+      "startDate": "2026-07-01",
+      "endDate": "2026-08-15",
+      "description": "Tặng 1 đôi dép Slide khi mua 1 sản phẩm áp dụng"
+    }
+  ]
+}

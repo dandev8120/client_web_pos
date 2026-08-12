@@ -1,0 +1,94 @@
+{
+  "success": true,
+  "code": 200,
+  "message": "Success",
+  "data": [
+    {
+      "siteCode": "1125",
+      "receiptNumber": "0008K7PX1290726",
+      "invoiceNumber": "C26MAC381714",
+      "payment": {
+        "paymentMethod": "ZALOPAY",
+        "bankCode": null,
+        "transactionCode": "260729-1125-0008K7PX1290726-324500645556",
+        "transactionStatus": "FAILED"
+      },
+      "customer": {
+        "customerCode": "BI83167681345312MC",
+        "customerName": "ANH DUY",
+        "phoneNumber": "0974230232"
+      },
+      "employee": {
+        "employeeCode": "BT008984",
+        "employeeName": "Nguyễn Thị Bích Thoa"
+      },
+      "quantity": 2,
+      "totalDiscount": 0,
+      "promotionNote": "GotIt:8023939542",
+      "totalAmount": 148000,
+      "shiftName": "CA SÁNG",
+      "transactionType": "Phiếu xuất hàng hóa tiêu thụ",
+      "transactionDateTime": "2026-07-29T14:04:39",
+      "statusSap": false,
+      "status": null
+    },
+    {
+      "siteCode": "1125",
+      "receiptNumber": "0008K7PX1290727",
+      "invoiceNumber": "C26MAC381715",
+      "payment": {
+        "paymentMethod": "CASH",
+        "bankCode": null,
+        "transactionCode": "CASH-20260729-002",
+        "transactionStatus": "SUCCESS"
+      },
+      "customer": {
+        "customerCode": "BI83167681345313MC",
+        "customerName": "TRẦN VĂN AN",
+        "phoneNumber": "0988123456"
+      },
+      "employee": {
+        "employeeCode": "BT008984",
+        "employeeName": "Nguyễn Thị Bích Thoa"
+      },
+      "quantity": 1,
+      "totalDiscount": 50000,
+      "promotionNote": "VIP-DISCOUNT-50K",
+      "totalAmount": 840000,
+      "shiftName": "CA SÁNG",
+      "transactionType": "Phiếu xuất hàng hóa tiêu thụ",
+      "transactionDateTime": "2026-07-29T15:12:00",
+      "statusSap": true,
+      "status": null
+    },
+    {
+      "siteCode": "1101",
+      "receiptNumber": "0001K7PX1120826",
+      "invoiceNumber": "C26MAC412620",
+      "payment": {
+        "paymentMethod": "TM",
+        "bankCode": null,
+        "transactionCode": "POS 1101",
+        "transactionStatus": "SUCCESS"
+      },
+      "customer": {
+        "customerCode": "000000000000001101",
+        "customerName": "Bán cho người tiêu dùng",
+        "phoneNumber": null
+      },
+      "employee": {
+        "employeeCode": "BT009707",
+        "employeeName": "Nguyễn Nhật Khánh Ly"
+      },
+      "quantity": 2,
+      "totalDiscount": 0,
+      "promotionNote": "",
+      "totalAmount": 113000,
+      "shiftName": "CA SÁNG",
+      "transactionType": "Phiếu xuất hàng hóa tiêu thụ",
+      "transactionDateTime": "2026-08-12T09:01:18",
+      "statusSap": false,
+      "status": null
+    }
+  ]
+}

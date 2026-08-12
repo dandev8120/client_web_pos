@@ -1,0 +1,96 @@
+{
+  "authMode": "mock",
+  "description": "Seed data auth giả lập cho Web POS & ERP Portal",
+  "users": [
+    {
+      "id": "usr_admin",
+      "username": "chidan2410",
+      "name": "Dương Chí Dẫn",
+      "email": "chidan2410@gmail.com",
+      "roleTitle": "Quản trị viên Hệ thống (Identity Admin)",
+      "roles": ["SkorubaIdentityAdminAdministrator", "IdentityBitisAdminAdministrator"],
+      "allowedUrls": ["*"],
+      "buttonPermissions": ["*"],
+      "avatarBg": "#2563eb",
+      "description": "Toàn quyền truy cập tất cả Menu, URL Route & mọi Nút bấm hệ thống.",
+      "jwtToken": "MOCK_JWT_ADMIN_TOKEN_SKORUBA_IDENTITY"
+    },
+    {
+      "id": "usr_store_manager",
+      "username": "store_manager",
+      "name": "Trần Văn Hoàng",
+      "email": "hoang.tv@bitisgroup.vn",
+      "roleTitle": "Cửa hàng trưởng (Store Manager)",
+      "roles": ["STORE_MANAGER"],
+      "allowedUrls": [
+        "/",
+        "/sales/orders",
+        "/sales/products",
+        "/sales/customers",
+        "/sales/promotions",
+        "/system/forms"
+      ],
+      "buttonPermissions": [
+        "sales.orders.btn_search",
+        "sales.orders.btn_reset",
+        "sales.orders.btn_create",
+        "sales.orders.btn_cancel",
+        "sales.orders.btn_export",
+        "sales.orders.btn_print",
+        "sales.products.btn_create",
+        "sales.products.btn_edit",
+        "sales.customers.btn_create",
+        "sales.customers.btn_export",
+        "sales.promotions.btn_create",
+        "system.forms.btn_export"
+      ],
+      "avatarBg": "#7c3aed",
+      "description": "Quyền Cửa hàng trưởng: Tạo đơn, hủy đơn, in hóa đơn, xuất file. Khóa 403 trang RBAC & Audit.",
+      "jwtToken": "MOCK_JWT_STORE_MANAGER_TOKEN"
+    },
+    {
+      "id": "usr_cashier",
+      "username": "cashier_nga",
+      "name": "Lê Thị Nga",
+      "email": "nga.lt@bitisgroup.vn",
+      "roleTitle": "Thu ngân / Bán hàng (Cashier)",
+      "roles": ["CASHIER"],
+      "allowedUrls": [
+        "/",
+        "/sales/orders",
+        "/sales/products"
+      ],
+      "buttonPermissions": [
+        "sales.orders.btn_search",
+        "sales.orders.btn_reset",
+        "sales.orders.btn_create",
+        "sales.orders.btn_print"
+      ],
+      "avatarBg": "#059669",
+      "description": "Quyền Thu ngân: Chỉ tạo đơn & in hóa đơn. Không có quyền Hủy đơn hoặc Xuất Excel.",
+      "jwtToken": "MOCK_JWT_CASHIER_TOKEN"
+    },
+    {
+      "id": "usr_auditor",
+      "username": "auditor_duc",
+      "name": "Nguyễn Minh Đức",
+      "email": "duc.nm@bitisgroup.vn",
+      "roleTitle": "Kiểm toán & Kế toán (Auditor)",
+      "roles": ["AUDITOR"],
+      "allowedUrls": [
+        "/",
+        "/sales/orders",
+        "/system/audit-logs"
+      ],
+      "buttonPermissions": [
+        "sales.orders.btn_search",
+        "sales.orders.btn_reset",
+        "sales.orders.btn_export",
+        "system.audit.btn_export"
+      ],
+      "avatarBg": "#d97706",
+      "description": "Quyền Kiểm toán: Xem đơn hàng & Audit logs, xuất Excel báo cáo. Không tạo/hủy đơn.",
+      "jwtToken": "MOCK_JWT_AUDITOR_TOKEN"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+[
+  {
+    "timestamp": "2026-08-11T23:50:15.000Z",
+    "action": "API_GET",
+    "element": "HTTP 200",
+    "path": "/sales/orders",
+    "text": "GET /api/receipts-center/detail/0008K7PX1290726/1134",
+    "value": "Status: 200 | Duration: 142ms",
+    "method": "GET",
+    "url": "/api/receipts-center/detail/0008K7PX1290726/1134",
+    "status": 200,
+    "durationMs": 142,
+    "requestBody": {
+      "forceRefresh": false,
+      "source": "PRINT_INVOICE_MODAL"
+    },
+    "responseBody": {
+      "code": 200,
+      "message": "Lấy chi tiết chứng từ bán hàng thành công",
+      "data": {
+        "siteCode": "1134",
+        "receiptNumber": "0008K7PX1290726",
+        "invoiceNumber": "C26MAM20128",
+        "seller": {
+          "legalName": "CÔNG TY CỔ PHẦN BÌNH TIÊN (BITI'S)",
+          "branchName": "CỬA HÀNG BITI'S QUẬN 1",
+          "taxCode": "0301234567",
+          "address": "47 Phạm Ngọc Thạch, P. Võ Thị Sáu, Q.3, TP.HCM"
+        },
+        "customer": {
+          "customerName": "Nguyễn Văn A",
+          "phoneNumber": "0901234567",
+          "membershipTier": "VIP GOLD"
+        },
+        "lineItems": [
+          {
+            "productCode": "BITIS-HUNTER-X",
+            "productName": "Giày Thể Thao Biti's Hunter X Nam",
+            "quantity": 1,
+            "unitPrice": 1250000,
+            "discount": 100000,
+            "totalAmount": 1150000
+          }
+        ],
+        "totals": {
+          "subtotal": 1250000,
+          "discountTotal": 100000,
+          "vatAmount": 85185,
+          "grandTotal": 1150000
+        }
+      }
+    }
+  },
+  {
+    "timestamp": "2026-08-11T23:48:30.000Z",
+    "action": "API_POST",
+    "element": "HTTP 200",
+    "path": "/sales/orders",
+    "text": "POST /api/receipts-center/search",
+    "value": "Status: 200 | Duration: 210ms",
+    "method": "POST",
+    "url": "/api/receipts-center/search",
+    "status": 200,
+    "durationMs": 210,
+    "requestBody": {
+      "pageIndex": 1,
+      "pageSize": 10,
+      "maSites": ["1134"],
+      "soChungTu": "0008K7PX",
+      "tuNgay": "2026-08-01",
+      "denNgay": "2026-08-11"
+    },
+    "responseBody": {
+      "status": "SUCCESS",
+      "totalRecords": 42,
+      "pageIndex": 1,
+      "pageSize": 10,
+      "itemsCount": 10,
+      "data": [
+        {
+          "siteCode": "1134",
+          "receiptNumber": "0008K7PX1290726",
+          "totalAmount": 1150000,
+          "paymentMethod": "ZALOPAY",
+          "statusSap": true
+        }
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-11T23:45:00.000Z",
+    "action": "API_POST",
+    "element": "HTTP 200",
+    "path": "/sales/sync",
+    "text": "POST /api/sap/sync-orders",
+    "value": "Status: 200 | Duration: 350ms",
+    "method": "POST",
+    "url": "/api/sap/sync-orders",
+    "status": 200,
+    "durationMs": 350,
+    "requestBody": {
+      "receiptNumbers": ["0008K7PX1290726", "0008K7PX1290727"],
+      "syncTarget": "SAP_ECC_PRD"
+    },
+    "responseBody": {
+      "success": true,
+      "syncedCount": 2,
+      "sapDocumentNumbers": ["SAP-908123", "SAP-908124"],
+      "syncedAt": "2026-08-11T23:45:00.210Z"
+    }
+  },
+  {
+    "timestamp": "2026-08-11T23:40:12.000Z",
+    "action": "CLICK",
+    "element": "Button",
+    "path": "/sales/orders",
+    "text": "Bấm nút 'In Hóa Đơn (VAT)' đơn 0008K7PX1290726",
+    "value": "0008K7PX1290726"
+  },
+  {
+    "timestamp": "2026-08-11T23:35:00.000Z",
+    "action": "LOGIN",
+    "element": "AuthButton",
+    "path": "/login",
+    "text": "Đăng nhập hệ thống thành công",
+    "value": "chidan2410"
+  }
+]

@@ -1,0 +1,217 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply bg-gray-50;
+  }
+}
+
+/* Custom scrollbar for some containers */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+.dark-theme .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #434343;
+}
+
+.dark-theme .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #595959;
+}
+
+/* Fix for Ant Table sticky header overlapping fixed app header */
+.ant-table-sticky-holder {
+  top: 64px !important; /* Height of the Header */
+  z-index: 15 !important;
+}
+
+/* Shadow for cards */
+.shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+/* Fix mobile layout breaking for ant-pagination ul and ant-tabs-nav-list ul */
+.ant-pagination {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px 8px !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  max-width: 100% !important;
+}
+
+@media (max-width: 640px) {
+  .ant-pagination {
+    justify-content: center !important;
+    width: 100% !important;
+    margin: 12px 0 !important;
+  }
+
+  .ant-pagination li {
+    margin-inline-end: 4px !important;
+  }
+
+  .ant-pagination-total-text {
+    width: 100% !important;
+    text-align: center !important;
+    margin-right: 0 !important;
+    margin-bottom: 6px !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+
+  .ant-pagination-options {
+    margin-left: 0 !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 4px !important;
+  }
+
+  .ant-pagination-options-quick-jumper {
+    margin-left: 0 !important;
+  }
+}
+
+.ant-tabs-nav-list {
+  max-width: 100% !important;
+}
+
+/* Antd DatePicker / RangePicker Mobile Responsive Fixes */
+.ant-picker-range {
+  max-width: 100% !important;
+}
+
+@media (max-width: 640px) {
+  /* Input box responsiveness */
+  .ant-picker-range {
+    padding: 4px 6px !important;
+  }
+  .ant-picker-range .ant-picker-input {
+    min-width: 0 !important;
+  }
+  .ant-picker-range .ant-picker-input > input {
+    font-size: 12px !important;
+    padding: 0 !important;
+  }
+  .ant-picker-range .ant-picker-separator {
+    padding: 0 2px !important;
+  }
+  .ant-picker-range .ant-picker-suffix {
+    margin-left: 2px !important;
+  }
+
+  /* Dropdown popup panel responsiveness */
+  .ant-picker-dropdown {
+    max-width: calc(100vw - 16px) !important;
+    left: 8px !important;
+  }
+
+  .ant-picker-dropdown .ant-picker-panel-container {
+    max-width: calc(100vw - 16px) !important;
+    overflow-x: auto !important;
+  }
+
+  .ant-picker-dropdown .ant-picker-panel-layout {
+    flex-direction: column !important;
+    max-width: 100% !important;
+  }
+
+  .ant-picker-dropdown .ant-picker-presets {
+    max-width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(5, 5, 5, 0.06) !important;
+  }
+
+  .ant-picker-dropdown .ant-picker-presets ul {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+    padding: 6px 8px !important;
+  }
+
+  .ant-picker-dropdown .ant-picker-presets li {
+    font-size: 11px !important;
+    padding: 2px 6px !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 4px !important;
+    margin: 0 !important;
+  }
+
+  .ant-picker-dropdown .ant-picker-panels {
+    flex-direction: column !important;
+    max-width: 100% !important;
+  }
+
+  .ant-picker-dropdown .ant-picker-panel {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .ant-picker-dropdown .ant-picker-panel .ant-picker-content {
+    width: 100% !important;
+  }
+
+  .ant-picker-dropdown .ant-picker-cell {
+    padding: 2px 0 !important;
+  }
+}
+
+/* Antd Table Empty State & Dropdown Responsiveness */
+.ant-table-placeholder {
+  background: transparent !important;
+}
+
+.ant-table-placeholder > td {
+  border-bottom: none !important;
+}
+
+.ant-table-placeholder .ant-empty {
+  margin: 16px 0 !important;
+}
+
+.ant-table-placeholder .ant-empty-description {
+  color: #64748b !important;
+  font-size: 13px !important;
+}
+
+.ant-table-placeholder:hover > td,
+.ant-table-placeholder:hover,
+.ant-table-placeholder .ant-table-cell-row-hover,
+.ant-table-placeholder:hover .ant-table-cell {
+  background: transparent !important;
+}
+
+.ant-table-wrapper {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.ant-table-container {
+  max-width: 100% !important;
+  border-radius: 8px;
+}
+
+/* Prevent dropdown popups from overflowing screen on mobile & ensure high z-index above table elements */
+.mobile-responsive-picker,
+.ant-dropdown,
+.ant-popover,
+.ant-select-dropdown,
+.ant-picker-dropdown {
+  max-width: calc(100vw - 16px) !important;
+  z-index: 2100 !important;
+}
+

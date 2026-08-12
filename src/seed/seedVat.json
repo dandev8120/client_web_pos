@@ -1,0 +1,60 @@
+{
+  "vatFormConfig": {
+    "individual": {
+      "enabled": true,
+      "title": "Thông tin xuất hóa đơn VAT Cá nhân",
+      "fields": [
+        { "key": "fullName", "label": "Họ và tên người mua", "type": "text", "required": true, "enabled": true, "placeholder": "Nhập họ và tên người mua hàng" },
+        { "key": "email", "label": "Email nhận hóa đơn", "type": "email", "required": true, "enabled": true, "placeholder": "Nhập email nhận hóa đơn điện tử" },
+        { "key": "address", "label": "Địa chỉ", "type": "text", "required": false, "enabled": true, "placeholder": "Nhập địa chỉ cư trú/làm việc" },
+        { "key": "personalTaxCode", "label": "Mã số thuế cá nhân", "type": "text", "required": false, "enabled": true, "placeholder": "Nhập mã số thuế cá nhân (nếu có)" }
+      ]
+    },
+    "enterprise": {
+      "enabled": true,
+      "title": "Thông tin xuất hóa đơn VAT Doanh nghiệp",
+      "fields": [
+        { "key": "companyName", "label": "Tên công ty / Đơn vị", "type": "text", "required": true, "enabled": true, "placeholder": "Nhập tên đầy đủ của doanh nghiệp theo đăng ký kinh doanh" },
+        { "key": "taxCode", "label": "Mã số thuế doanh nghiệp", "type": "text", "required": true, "enabled": true, "placeholder": "Nhập mã số thuế doanh nghiệp (10 hoặc 13 chữ số)", "validation": "^[0-9]{10}(-[0-9]{3})?$" },
+        { "key": "email", "label": "Email nhận hóa đơn", "type": "email", "required": true, "enabled": true, "placeholder": "Nhập địa chỉ email doanh nghiệp" },
+        { "key": "address", "label": "Địa chỉ công ty", "type": "text", "required": true, "enabled": true, "placeholder": "Địa chỉ trụ sở chính theo đăng ký doanh nghiệp" },
+        { 
+          "key": "province", 
+          "label": "Tỉnh / Thành phố", 
+          "type": "select", 
+          "required": true, 
+          "enabled": true, 
+          "defaultValue": "79", 
+          "options": [
+            { "value": "79", "text": "Thành phố Hồ Chí Minh" },
+            { "value": "01", "text": "Thành phố Hà Nội" },
+            { "value": "48", "text": "Thành phố Đà Nẵng" },
+            { "value": "31", "text": "Thành phố Hải Phòng" },
+            { "value": "92", "text": "Thành phố Cần Thơ" },
+            { "value": "74", "text": "Tỉnh Bình Dương" },
+            { "value": "75", "text": "Tỉnh Đồng Nai" }
+          ]
+        }
+      ]
+    }
+  },
+  "sampleInvoices": [
+    {
+      "orderId": "ORD-2026-8801",
+      "storeId": "ST-001",
+      "registerId": "POS-01",
+      "signature": "SIG_BITIS_8801",
+      "amount": "1250000",
+      "customerType": "enterprise",
+      "issuedAt": "2026-08-05T14:30:00.000Z",
+      "formData": {
+        "invoiceType": "enterprise",
+        "companyName": "Công Ty TNHH Công Nghệ Biti's Việt Nam",
+        "taxCode": "0312345678",
+        "email": "ketoan@bitis.vn",
+        "address": "Số 205 Lý Thường Kiệt, Phường 6, Quận 11, TP. Hồ Chí Minh",
+        "province": "79"
+      }
+    }
+  ]
+}

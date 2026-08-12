@@ -1,0 +1,349 @@
+{
+  "success": true,
+  "code": 200,
+  "message": "Success",
+  "data": [
+    {
+      "sellerInfo": {
+        "sellerLegalName": "CÔNG TY TNHH SẢN XUẤT HÀNG TIÊU DÙNG BÌNH TIÊN - CHI NHÁNH BITI'S TẠI MIỀN NAM",
+        "sellerTaxCode": "0301340497-035",
+        "sellerAddressLine": "24 Lý Chiêu Hoàng, Phường Bình Phú, Thành phố Hồ Chí Minh, Việt Nam",
+        "sellerWebsite": "https://bitis.com.vn",
+        "storeName": "CHTT BITIS THÁP MƯỜI",
+        "storeAddress": "56 - 58 - 60 - 62 Tháp Mười, Phường Bình Tây, Thành phố Hồ Chí Minh",
+        "invoiceSeries": "C25MAC"
+      },
+      "receiptInfo": {
+        "businessType": "Bán Lẻ",
+        "transactionName": "Phiếu xuất hàng hóa tiêu thụ",
+        "receiptNumber": "0001K7PX1120826",
+        "uuid": "1101-0001K7PX1120826",
+        "invoiceNumber": "C26MAC412620",
+        "salesChannel": "POS 1101",
+        "receiptTime": "2026-08-12T09:01:18"
+      },
+      "customer": {
+        "customerCode": "000000000000001101",
+        "phoneNumber": null,
+        "customerName": "Bán cho người tiêu dùng",
+        "email": null,
+        "district": null,
+        "registrationDate": null,
+        "membershipTier": null
+      },
+      "invoiceInfo": {
+        "buyerName": "Bán cho người tiêu dùng",
+        "buyerLegalName": "Bán cho người tiêu dùng (CHTT BITIS THÁP MƯỜI_BÁN LẺ)",
+        "buyerTaxCode": null,
+        "buyerAddressLine": "Khách hàng không cung cấp thông tin",
+        "buyerPhoneNumber": "",
+        "buyerEmail": "",
+        "buyerCode": "1101_BLE"
+      },
+      "lineItems": [
+        {
+          "productCode": "BEW003000DEN35",
+          "barcode": "893456987065613350",
+          "productName": "Dép Evaphun Nữ Bitis, Đen, 35",
+          "categoryCode": "147",
+          "categoryName": "Dép Eva phun Nữ",
+          "unit": "Đôi",
+          "quantity": 1,
+          "unitPrice": 113000,
+          "discountPercentage": 0,
+          "discountAmount": 0,
+          "vatAmount": 9040,
+          "totalAmount": 113000
+        },
+        {
+          "productCode": "TUITH1823OOO00",
+          "barcode": "893456918267400000",
+          "productName": "Túi tự huỷ 18*23cm (1 đôi), OOO, 00",
+          "categoryCode": "299",
+          "categoryName": "Bao bì các loại",
+          "unit": "Cái",
+          "quantity": 1,
+          "unitPrice": 436,
+          "discountPercentage": 0,
+          "discountAmount": 0,
+          "vatAmount": 0,
+          "totalAmount": 0
+        }
+      ],
+      "receiptTotals": {
+        "customerPaidAmount": 113000,
+        "changeAmount": 0,
+        "cardAmount": 0,
+        "voucherAmount": 0,
+        "totalAmount": 113000,
+        "totalAmountWithTaxInWords": "Một trăm mười ba nghìn đồng chẵn"
+      },
+      "promotions": {
+        "promotionNote": ""
+      },
+      "payments": [
+        {
+          "paymentMethodCode": "TM",
+          "paymentMethodName": "TM",
+          "transactionCode": "POS 1101",
+          "amount": 113000,
+          "bankCode": null,
+          "status": "SUCCESS"
+        }
+      ],
+      "employee": {
+        "employeeCode": "BT009707",
+        "employeeName": "Nguyễn Nhật Khánh Ly",
+        "receiptDate": "2026-08-12T00:00:00",
+        "shiftName": "Ca Sáng"
+      },
+      "activityLog": {
+        "receipt": {
+          "createdAt": "2026-08-12T00:00:00"
+        },
+        "payment": {
+          "createdAt": "2026-08-12T09:01:18",
+          "lastUpdatedAt": "2026-08-12T09:01:18"
+        },
+        "invoice": {
+          "entryDate": "2026-08-12T00:00:00Z",
+          "createdAt": "2026-08-12T02:01:21.407Z",
+          "lastUpdatedAt": "2026-08-12T02:01:22.164Z"
+        },
+        "billPrinting": {
+          "printedDate": "2026-08-12T09:01:18"
+        },
+        "sapSync": {
+          "status": false,
+          "createdTime": "2026-08-12T09:01:38.923"
+        }
+      }
+    },
+    {
+      "sellerInfo": {
+        "sellerLegalName": "CÔNG TY TNHH SẢN XUẤT HÀNG TIÊU DÙNG BÌNH TIÊN - CHI NHÁNH BITI'S TẠI MIỀN NAM",
+        "sellerTaxCode": "0301340497-035",
+        "sellerAddressLine": "24 Lý Chiêu Hoàng, Phường Bình Phú, Thành phố Hồ Chí Minh, Việt Nam",
+        "sellerWebsite": "https://bitis.com.vn",
+        "storeName": "CHTT BITIS VÕ VĂN NGÂN",
+        "storeAddress": "290 Võ Văn Ngân, Phường Thủ Đức, Thành phố Hồ Chí Minh",
+        "invoiceSeries": "C25MAC"
+      },
+      "receiptInfo": {
+        "businessType": "Bán Lẻ",
+        "transactionName": "Phiếu xuất hàng hóa tiêu thụ",
+        "receiptNumber": "0008K7PX1290726",
+        "uuid": "1125-0008K7PX1290726",
+        "invoiceNumber": "C26MAC381714",
+        "salesChannel": "POS 1125",
+        "receiptTime": "2026-07-29T14:04:39"
+      },
+      "customer": {
+        "customerCode": "BI83167681345312MC",
+        "customerName": "ANH DUY",
+        "phoneNumber": "0974230232",
+        "email": "anhduy@example.com",
+        "district": "Quận Thủ Đức",
+        "registrationDate": "2025-05-25T20:49:19.58",
+        "membershipTier": "Membership"
+      },
+      "invoiceInfo": {
+        "buyerName": "Bán cho người tiêu dùng",
+        "buyerLegalName": "Bán cho người tiêu dùng (CHTT BITIS VÕ VĂN NGÂN_BÁN LẺ)",
+        "buyerTaxCode": null,
+        "buyerAddressLine": "Khách hàng không cung cấp thông tin",
+        "buyerPhoneNumber": "",
+        "buyerEmail": "",
+        "buyerCode": "1125_BLE"
+      },
+      "lineItems": [
+        {
+          "productCode": "BEG007500HOG29",
+          "barcode": "893456990279104290",
+          "productName": "Dép Evaphun Bé gái Bitis, Hồng, 29",
+          "categoryCode": "134",
+          "categoryName": "Dép Eva phun GIR",
+          "unit": "Đôi",
+          "quantity": 1,
+          "unitPrice": 148000,
+          "discountPercentage": 0,
+          "discountAmount": 0,
+          "vatAmount": 11840,
+          "totalAmount": 148000
+        },
+        {
+          "productCode": "TUITH6340OOO00",
+          "barcode": "893456918255100000",
+          "productName": "Túi tự huỷ 63*40cm (5 đôi), OOO, 00",
+          "categoryCode": "299",
+          "categoryName": "Bao bì các loại",
+          "unit": "Cái",
+          "quantity": 1,
+          "unitPrice": 4000,
+          "discountPercentage": 0,
+          "discountAmount": 0,
+          "vatAmount": 0,
+          "totalAmount": 0
+        }
+      ],
+      "receiptTotals": {
+        "customerPaidAmount": 148000,
+        "changeAmount": 0,
+        "cardAmount": 48000,
+        "voucherAmount": 100000,
+        "totalAmount": 148000,
+        "totalAmountWithTaxInWords": "Một trăm bốn mươi tám nghìn đồng chẵn"
+      },
+      "promotions": {
+        "promotionNote": "GotIt:8023939542"
+      },
+      "payments": [
+        {
+          "paymentMethodCode": "VOUCHER",
+          "paymentMethodName": "VOUCHER",
+          "transactionCode": "POS 1125",
+          "amount": 100000,
+          "bankCode": null,
+          "status": "SUCCESS"
+        },
+        {
+          "paymentMethodCode": "ATM/CK",
+          "paymentMethodName": "ATM/CK",
+          "transactionCode": "POS 1125",
+          "amount": 48000,
+          "bankCode": null,
+          "status": "SUCCESS"
+        }
+      ],
+      "employee": {
+        "employeeCode": "BT008984",
+        "employeeName": "Nguyễn Thị Bích Thoa",
+        "receiptDate": "2026-07-29T00:00:00",
+        "shiftName": "Ca Sáng"
+      },
+      "activityLog": {
+        "receipt": {
+          "createdAt": "2026-07-29T00:00:00"
+        },
+        "payment": {
+          "createdAt": "2026-07-29T07:01:26.569287Z",
+          "lastUpdatedAt": "2026-07-29T07:16:26.606579Z"
+        },
+        "invoice": {
+          "entryDate": "2026-07-29T00:00:00Z",
+          "createdAt": "2026-07-29T07:05:26.905Z",
+          "lastUpdatedAt": "2026-07-29T07:05:27.657Z"
+        },
+        "billPrinting": {
+          "printedDate": "2026-07-29T14:04:39"
+        },
+        "sapSync": {
+          "status": false,
+          "createdTime": "2026-07-29T21:38:11.083"
+        }
+      }
+    },
+    {
+      "sellerInfo": {
+        "sellerLegalName": "CÔNG TY TNHH SẢN XUẤT HÀNG TIÊU DÙNG BÌNH TIÊN - CHI NHÁNH BITI'S TẠI MIỀN NAM",
+        "sellerTaxCode": "0301340497-035",
+        "sellerAddressLine": "24 Lý Chiêu Hoàng, Phường Bình Phú, Thành phố Hồ Chí Minh, Việt Nam",
+        "sellerWebsite": "https://bitis.com.vn",
+        "storeName": "CHTT BITIS VÕ VĂN NGÂN",
+        "storeAddress": "290 Võ Văn Ngân, Phường Thủ Đức, Thành phố Hồ Chí Minh",
+        "invoiceSeries": "C25MAC"
+      },
+      "receiptInfo": {
+        "businessType": "Bán Lẻ",
+        "transactionName": "Phiếu xuất hàng hóa tiêu thụ",
+        "receiptNumber": "0008K7PX1290727",
+        "uuid": "1125-0008K7PX1290727",
+        "invoiceNumber": "C26MAC381715",
+        "salesChannel": "POS 1125",
+        "receiptTime": "2026-07-29T15:12:00"
+      },
+      "customer": {
+        "customerCode": "BI83167681345313MC",
+        "customerName": "TRẦN VĂN AN",
+        "phoneNumber": "0988123456",
+        "email": "an.tran@example.com",
+        "district": "Quận 1",
+        "registrationDate": "2025-06-10T10:20:00",
+        "membershipTier": "VIP Silver"
+      },
+      "invoiceInfo": {
+        "buyerName": "Trần Văn An",
+        "buyerLegalName": "Trần Văn An",
+        "buyerTaxCode": null,
+        "buyerAddressLine": "Quận 1, Thành phố Hồ Chí Minh",
+        "buyerPhoneNumber": "0988123456",
+        "buyerEmail": "an.tran@example.com",
+        "buyerCode": "1125_BLE"
+      },
+      "lineItems": [
+        {
+          "productCode": "PROD-1001",
+          "barcode": "893850100001",
+          "productName": "Giày Sneaker Biti's Hunter Street",
+          "categoryCode": "134",
+          "categoryName": "Giày dép",
+          "unit": "Đôi",
+          "quantity": 1,
+          "unitPrice": 890000,
+          "discountPercentage": 5.6,
+          "discountAmount": 50000,
+          "vatAmount": 67200,
+          "totalAmount": 840000
+        }
+      ],
+      "receiptTotals": {
+        "customerPaidAmount": 840000,
+        "changeAmount": 0,
+        "cardAmount": 0,
+        "voucherAmount": 0,
+        "totalAmount": 840000,
+        "totalAmountWithTaxInWords": "Tám trăm bốn mươi nghìn đồng chẵn"
+      },
+      "promotions": {
+        "promotionNote": "VIP-DISCOUNT-50K"
+      },
+      "payments": [
+        {
+          "paymentMethodCode": "TIỀN MẶT",
+          "paymentMethodName": "TIỀN MẶT",
+          "transactionCode": "CASH-002",
+          "amount": 840000,
+          "bankCode": null,
+          "status": "SUCCESS"
+        }
+      ],
+      "employee": {
+        "employeeCode": "BT008984",
+        "employeeName": "Nguyễn Thị Bích Thoa",
+        "receiptDate": "2026-07-29T00:00:00",
+        "shiftName": "Ca Sáng"
+      },
+      "activityLog": {
+        "receipt": {
+          "createdAt": "2026-07-29T15:12:00"
+        },
+        "payment": {
+          "createdAt": "2026-07-29T15:12:05Z",
+          "lastUpdatedAt": "2026-07-29T15:12:05Z"
+        },
+        "invoice": {
+          "entryDate": "2026-07-29T15:12:00Z",
+          "createdAt": "2026-07-29T15:12:10Z",
+          "lastUpdatedAt": "2026-07-29T15:12:10Z"
+        },
+        "billPrinting": {
+          "printedDate": "2026-07-29T15:12:15"
+        },
+        "sapSync": {
+          "status": true,
+          "createdTime": "2026-07-29T15:15:00.000"
+        }
+      }
+    }
+  ]
+}

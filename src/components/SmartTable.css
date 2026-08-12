@@ -1,0 +1,96 @@
+.smart-table {
+  width: 100%;
+  max-width: 100%;
+}
+
+.smart-table .ant-table {
+  max-width: 100%;
+}
+
+.smart-table .ant-table-container {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.smart-table .ant-table-placeholder {
+  background: transparent !important;
+}
+
+.smart-table .ant-table-placeholder > td {
+  border-bottom: none !important;
+}
+
+.smart-table .ant-table-thead > tr > th {
+  padding: 10px 12px !important;
+  font-weight: 600;
+  background-color: #f8fafc !important;
+  color: #334155 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.smart-table .ant-table-tbody > tr > td {
+  padding: 10px 12px !important;
+  vertical-align: top;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.react-resizable-handle {
+  position: absolute;
+  right: -7px;
+  top: 0;
+  bottom: 0;
+  z-index: 30;
+  width: 14px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+
+.react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  top: 15%;
+  height: 70%;
+  width: 2px;
+  background: rgba(0, 0, 0, 0.15);
+  transition: background 0.2s, width 0.2s;
+}
+
+.smart-table .ant-table-thead th:hover .react-resizable-handle::after,
+.react-resizable-handle:hover::after {
+  background: #1890ff;
+  width: 4px;
+}
+
+.smart-table .ant-table-thead th {
+  position: relative;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.smart-table .ant-table-thead th:last-child .react-resizable-handle {
+  display: none;
+}
+
+/* Custom scrollbar for table */
+.smart-table .ant-table-body::-webkit-scrollbar,
+.smart-table .ant-table-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.smart-table .ant-table-body::-webkit-scrollbar-thumb,
+.smart-table .ant-table-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.smart-table .ant-table-body::-webkit-scrollbar-thumb:hover,
+.smart-table .ant-table-content::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
