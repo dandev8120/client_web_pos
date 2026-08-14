@@ -4,6 +4,7 @@ import { WebStorageStateStore, User } from "oidc-client-ts";
 const authority = import.meta.env.VITE_OIDC_AUTHORITY || "https://identityserver.bitisgroup.vn";
 const clientId = import.meta.env.VITE_OIDC_CLIENT_ID || "sso_portal_v2_web_client_client_id_prod";
 const scope = import.meta.env.VITE_OIDC_SCOPE || "openid email profile roles";
+const responseType = import.meta.env.VITE_OIDC_RESPONSE_TYPE || "code";
 const callbackPath = import.meta.env.VITE_OIDC_CALLBACK_PATH || "/signin-oidc";
 const signoutCallbackPath = import.meta.env.VITE_OIDC_SIGNOUT_CALLBACK_PATH || "/signout-callback-oidc";
 
@@ -20,11 +21,12 @@ export const oidcConfig: AuthProviderProps = {
   client_id: clientId,
   redirect_uri: import.meta.env.VITE_OIDC_REDIRECT_URI || `${getOrigin()}${callbackPath}`,
   post_logout_redirect_uri: import.meta.env.VITE_OIDC_POST_LOGOUT_REDIRECT_URI || `${getOrigin()}${signoutCallbackPath}`,
-  silent_redirect_uri: import.meta.env.VITE_OIDC_SILENT_REDIRECT_URI || `${getOrigin()}${callbackPath}`,
   scope,
+  response_type: responseType,
   automaticSilentRenew: false,
+  loadUserInfo: true,
+  monitorSession: false,
   userStore: new WebStorageStateStore({ store: typeof window !== 'undefined' ? window.localStorage : undefined }),
-  metadataUrl: `${getOrigin()}/oidc-proxy/.well-known/openid-configuration`,
   metadata: {
     issuer: authority,
     authorization_endpoint: `${authority}/connect/authorize`,
@@ -33,11 +35,6 @@ export const oidcConfig: AuthProviderProps = {
     end_session_endpoint: `${authority}/connect/endsession`,
     jwks_uri: `${getOrigin()}/oidc-proxy/.well-known/openid-configuration/jwks`,
     revocation_endpoint: `${getOrigin()}/oidc-proxy/connect/revocation`,
-  },
-  onSigninCallback: (user: User | void) => {
-    if (typeof window !== 'undefined') {
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
   }
 };
 

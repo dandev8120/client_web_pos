@@ -1,23 +1,24 @@
 {
-  "name": "Copy of client_web_pos",
+  "name": "client_web_pos",
   "shortName": "POS CENTER",
-  "logoUrl": "https://theme.hstatic.net/1000230642/1001205219/14/favicon-new.png?v\u003d10907",
+  "logoUrl": "https://theme.hstatic.net/1000230642/1001205219/14/favicon-new.png?v=10907",
+  "logoUrlVAT": "https://theme.hstatic.net/1000230642/1001205219/14/favicon-new.png?v=10907",
   "description": "Imported from GitHub: dandev8120/client_web_pos",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ],
-  "title": "POS CENTER - Biti\u0027s Việt Nam",
-  "header": "Hệ Thống Trung Tâm Quản Lý Bán Lẻ POS CENTER - Biti\u0027s",
-  "footer": "© 2026 Công ty TNHH Sản Xuất Hàng Tiêu Dùng Bình Tiên (Biti\u0027s). Bản quyền thuộc về POS CENTER.",
+  "title": "POS CENTER - Biti's Việt Nam",
+  "header": "Hệ Thống Trung Tâm Quản Lý Bán Lẻ POS CENTER - Biti's",
+  "footer": "© 2026 Công ty TNHH Sản Xuất Hàng Tiêu Dùng Bình Tiên Biti's. Bản quyền thuộc về POS CENTER.",
   "seoKeywords": [
     "POS CENTER",
-    "Biti\u0027s",
-    "Biti\u0027s Hunter",
+    "Biti's",
+    "Biti's Hunter",
     "Quản lý bán hàng POS",
-    "Bán lẻ Biti\u0027s",
+    "Bán lẻ Biti's",
     "Hóa đơn điện tử VAT",
     "Đồng bộ SAP ERP",
-    "Hệ thống bán lẻ Biti\u0027s"
+    "Hệ thống bán lẻ Biti's"
   ]
 }

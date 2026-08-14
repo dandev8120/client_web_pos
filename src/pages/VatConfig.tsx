@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, Typography, Switch, Table, Input, Checkbox, Button, App, Row, Col, Tabs, Space, Divider, Alert, Tooltip, Badge, Modal, Form, Select } from 'antd';
 import { SaveOutlined, ReloadOutlined, EyeOutlined, InfoCircleOutlined, SafetyCertificateOutlined, BuildOutlined, UserOutlined, SettingOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { motion } from 'motion/react';
-import axios from 'axios';
 import PageContainer from '../components/PageContainer';
 import seedVatJson from '../seed/seedVat.json';
 import { VatFormConfigDto, VatFormFieldDto, VatTypeConfigDto, VatInvoiceMapper } from '../dtos/VatDto';
+import { vatService } from '../services/vatService';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -40,10 +40,7 @@ export default function VatConfig() {
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('/api/vat/config');
-      if (response.data) {
-        setConfig(response.data);
-      }
+      setConfig(vatService.getConfig());
     } catch (err: any) {
       console.error("Error loading VAT config:", err);
       message.error("Không thể tải cấu hình hóa đơn VAT.");
@@ -60,21 +57,20 @@ export default function VatConfig() {
   const saveConfig = async () => {
     setSaving(true);
     try {
-      const response = await axios.post('/api/vat/config', config);
-      if (response.data.success) {
-        const jsonbSize = (JSON.stringify(config).length / 1024).toFixed(2);
+      const savedConfig = vatService.updateConfig(config);
+      setConfig(savedConfig);
+      if (savedConfig) {
+        const jsonbSize = (JSON.stringify(savedConfig).length / 1024).toFixed(2);
         notification.success({
           message: "Lưu Cấu Hình JSONB Thành Công!",
-          description: `Toàn bộ khối dữ liệu cấu hình (${jsonbSize} KB) đã được lưu trực tiếp dưới dạng JSONB vào database backend. Cấu trúc form động khả dụng ngay lập tức cho cổng khách hàng.`,
+          description: `Toàn bộ khối dữ liệu cấu hình (${jsonbSize} KB) đã được cập nhật qua VatService.`,
           placement: 'topRight',
           duration: 4.5
         });
-      } else {
-        message.error(response.data.error || "Không thể lưu cấu hình.");
       }
     } catch (err: any) {
       console.error("Error saving VAT config:", err);
-      message.error("Lỗi kết nối máy chủ khi lưu cấu hình.");
+      message.error("Không thể lưu cấu hình VAT.");
     } finally {
       setSaving(false);
     }

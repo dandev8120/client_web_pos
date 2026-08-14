@@ -2,7 +2,15 @@ node_modules/
 build/
 dist/
 coverage/
+obj/
+.certs/
 .DS_Store
 *.log
+*.err
+*.user
+.browser-*
+.dev-*
 .env*
-!.env.example
+!.env.local
+!.env.development
+!.env.production

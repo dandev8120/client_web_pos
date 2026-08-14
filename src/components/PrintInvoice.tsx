@@ -1,21 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Tabs, Tag, Space, Spin, Modal, Input, Select, Switch, Tooltip, Badge, App } from 'antd';
-import { 
-  PrinterOutlined, 
-  DownloadOutlined, 
-  CheckCircleOutlined, 
-  QrcodeOutlined, 
-  SafetyCertificateOutlined,
-  ReloadOutlined,
+import React, { useEffect, useMemo, useState } from 'react';
+import { App, Badge, Button, Input, Modal, Select, Space, Spin, Switch, Tabs, Tag, Tooltip } from 'antd';
+import metadata from '../../metadata.json';
+import {
+  CheckCircleOutlined,
+  DownloadOutlined,
+  ExclamationCircleOutlined,
   LoadingOutlined,
+  PrinterOutlined,
+  ReloadOutlined,
   SettingOutlined,
-  WifiOutlined,
-  UsbOutlined,
-  ApiOutlined,
-  BarcodeOutlined,
   ThunderboltOutlined,
-  CheckOutlined,
-  ExclamationCircleOutlined
+  WifiOutlined,
 } from '@ant-design/icons';
 import { orderService } from '../services/orderService';
 import { getOrderDetailFull } from './orders/orderHelpers';
@@ -31,72 +26,91 @@ export interface PrintInvoiceProps {
   isModal?: boolean;
 }
 
-/**
- * Convert numeric currency to Vietnamese words
- */
+type PrinterType = 'lan' | 'driver';
+type PaperWidth = 'k80' | 'k57';
+
+const NO_DATA = 'Không có dữ liệu';
+const PRINTER_CONFIG_KEY = 'k80_printer_config';
+
+function isFullDetail(value: any) {
+  return Boolean(value?.store && value?.order && Array.isArray(value?.items));
+}
+
+function textValue(value: any, fallback = '—') {
+  if (value === null || value === undefined) return fallback;
+  const text = String(value).trim();
+  if (!text || text === NO_DATA || text === 'null' || text === 'undefined') return fallback;
+  return text;
+}
+
+function money(value: any) {
+  const num = Number(value || 0);
+  return `${num.toLocaleString('vi-VN')} đ`;
+}
+
+function parseMoney(value: any) {
+  if (typeof value === 'number') return value;
+  return Number(String(value || '').replace(/[^\d.-]/g, '')) || 0;
+}
+
+function formatDateTime(value: any) {
+  const text = textValue(value, '');
+  if (!text) return '—';
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return text.replace('T', ' ');
+  return date.toLocaleString('vi-VN', { hour12: false });
+}
+
 function numberToVietnameseWords(num: number): string {
-  if (!num || isNaN(num) || num === 0) return 'Không đồng.';
-  
+  if (!num || Number.isNaN(num)) return 'Không đồng.';
+
   const units = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
   const scales = ['', 'ngàn', 'triệu', 'tỷ', 'ngàn tỷ', 'triệu tỷ'];
 
-  function readThreeDigits(n: number, showZeroHundred: boolean): string {
-    let hundred = Math.floor(n / 100);
-    let remainder = n % 100;
-    let ten = Math.floor(remainder / 10);
-    let unit = remainder % 10;
-    let res = '';
+  const readThreeDigits = (value: number, showZeroHundred: boolean) => {
+    const hundred = Math.floor(value / 100);
+    const remainder = value % 100;
+    const ten = Math.floor(remainder / 10);
+    const unit = remainder % 10;
+    let result = '';
 
-    if (hundred > 0 || showZeroHundred) {
-      res += units[hundred] + ' trăm ';
-    }
-
+    if (hundred > 0 || showZeroHundred) result += `${units[hundred]} trăm `;
     if (ten > 1) {
-      res += units[ten] + ' mươi ';
-      if (unit === 1) res += 'mốt ';
-      else if (unit === 5) res += 'lăm ';
-      else if (unit > 0) res += units[unit] + ' ';
+      result += `${units[ten]} mươi `;
+      if (unit === 1) result += 'mốt ';
+      else if (unit === 5) result += 'lăm ';
+      else if (unit > 0) result += `${units[unit]} `;
     } else if (ten === 1) {
-      res += 'mười ';
-      if (unit === 1) res += 'một ';
-      else if (unit === 5) res += 'lăm ';
-      else if (unit > 0) res += units[unit] + ' ';
-    } else if (ten === 0 && unit > 0) {
-      if (hundred > 0 || showZeroHundred) res += 'lẻ ';
-      if (unit === 5 && (hundred > 0 || showZeroHundred)) res += 'lăm ';
-      else res += units[unit] + ' ';
+      result += 'mười ';
+      if (unit === 5) result += 'lăm ';
+      else if (unit > 0) result += `${units[unit]} `;
+    } else if (unit > 0) {
+      if (hundred > 0 || showZeroHundred) result += 'lẻ ';
+      result += `${unit === 5 && (hundred > 0 || showZeroHundred) ? 'lăm' : units[unit]} `;
     }
 
-    return res;
+    return result.trim();
+  };
+
+  let digits = Math.abs(Math.round(num)).toString();
+  const groups: number[] = [];
+  while (digits.length > 0) {
+    groups.push(Number(digits.slice(-3)));
+    digits = digits.slice(0, -3);
   }
 
-  let strNum = Math.abs(Math.round(num)).toString();
-  let groups: number[] = [];
-  while (strNum.length > 0) {
-    let chunk = strNum.slice(-3);
-    groups.push(parseInt(chunk, 10));
-    strNum = strNum.slice(0, -3);
-  }
-
-  let words: string[] = [];
-  for (let i = groups.length - 1; i >= 0; i--) {
-    let groupVal = groups[i];
-    if (groupVal > 0) {
-      let groupStr = readThreeDigits(groupVal, i < groups.length - 1);
-      words.push(groupStr.trim() + ' ' + scales[i]);
+  const words: string[] = [];
+  for (let index = groups.length - 1; index >= 0; index -= 1) {
+    const group = groups[index];
+    if (group > 0) {
+      words.push(`${readThreeDigits(group, index < groups.length - 1)} ${scales[index]}`.trim());
     }
   }
 
-  let result = words.join(' ').trim();
-  if (!result) return 'Không đồng.';
-
-  result = result.charAt(0).toUpperCase() + result.slice(1) + ' đồng chẵn.';
-  return result;
+  const result = words.join(' ').replace(/\s+/g, ' ').trim();
+  return result ? `${result.charAt(0).toUpperCase()}${result.slice(1)} đồng chẵn.` : 'Không đồng.';
 }
 
-/**
- * Dedicated Print Component for Invoices & POS Receipts
- */
 export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   siteCode,
   receiptNumber,
@@ -108,763 +122,660 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   isModal = true,
 }) => {
   const { message } = App.useApp();
-  const [activeTab, setActiveTab] = useState<'vat' | 'pos'>('pos');
-  const [detailData, setDetailData] = useState<any>(initialDetail || null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'pos' | 'vat'>('pos');
+  const [loadedOrder, setLoadedOrder] = useState<any>(order || null);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastLocalRefresh, setLastLocalRefresh] = useState<string>('');
+  const [lastRefreshAt, setLastRefreshAt] = useState('');
 
-  // Printer Configuration State
-  const [printerModalOpen, setPrinterModalOpen] = useState<boolean>(false);
-  const [printerType, setPrinterType] = useState<'lan' | 'usb' | 'bluetooth' | 'driver'>('lan');
-  const [printerIp, setPrinterIp] = useState<string>('192.168.1.200');
-  const [printerPort, setPrinterPort] = useState<string>('9100');
-  const [paperWidth, setPaperWidth] = useState<'k80' | 'k57'>('k80');
-  const [autoCut, setAutoCut] = useState<boolean>(true);
-  const [copyCount, setCopyCount] = useState<number>(1);
-  const [isConnected, setIsConnected] = useState<boolean>(true);
-  const [isTestingPrinter, setIsTestingPrinter] = useState<boolean>(false);
+  const [printerModalOpen, setPrinterModalOpen] = useState(false);
+  const [printerType, setPrinterType] = useState<PrinterType>('lan');
+  const [printerIp, setPrinterIp] = useState('192.168.6.201');
+  const [printerPort, setPrinterPort] = useState('9100');
+  const [paperWidth, setPaperWidth] = useState<PaperWidth>('k80');
+  const [autoCut, setAutoCut] = useState(true);
+  const [copyCount, setCopyCount] = useState(1);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isTestingPrinter, setIsTestingPrinter] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
 
-  const effectiveSite = siteCode || order?.storeId || order?.siteCode || '1134';
-  const effectiveReceipt = receiptNumber || order?.id || order?.receiptNumber || '';
+  const effectiveSite = textValue(siteCode || order?.storeId || order?.siteCode || order?.rawJsonb?.receiptInfo?.salesChannel, '1134').replace(/^POS\s+/i, '');
+  const effectiveReceipt = textValue(receiptNumber || order?.id || order?.receiptNumber || order?.rawJsonb?.receiptInfo?.receiptNumber, '');
 
-  // Initial fetch on modal open or parameter change
-  useEffect(() => {
-    if (open && effectiveReceipt) {
-      setIsLoading(true);
-      setError(null);
-      if (initialDetail) {
-        setDetailData(initialDetail);
-      }
-
-      orderService.getReceiptDetail(effectiveSite, effectiveReceipt, false)
-        .then((res) => {
-          if (res) {
-            setDetailData(res);
-          }
-          if (autoPrint) {
-            setTimeout(() => window.print(), 300);
-          }
-        })
-        .catch((err) => {
-          console.error('Error loading detail for print:', err);
-          if (!initialDetail) {
-            setError(err.message || 'Không thể kết nối API chi tiết hóa đơn');
-          }
-        })
-        .finally(() => setIsLoading(false));
-    }
-  }, [open, effectiveSite, effectiveReceipt]);
-
-  // Load stored printer settings on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('k80_printer_config');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.printerType) setPrinterType(parsed.printerType);
-        if (parsed.printerIp) setPrinterIp(parsed.printerIp);
-        if (parsed.printerPort) setPrinterPort(parsed.printerPort);
-        if (parsed.autoCut !== undefined) setAutoCut(parsed.autoCut);
-        if (parsed.paperWidth) setPaperWidth(parsed.paperWidth);
-      }
-    } catch (e) {
-      // Ignore
+      const saved = localStorage.getItem(PRINTER_CONFIG_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      if (parsed.printerType) setPrinterType(parsed.printerType);
+      if (parsed.printerIp) setPrinterIp(parsed.printerIp);
+      if (parsed.printerPort) setPrinterPort(parsed.printerPort);
+      if (parsed.paperWidth) setPaperWidth(parsed.paperWidth);
+      if (parsed.autoCut !== undefined) setAutoCut(Boolean(parsed.autoCut));
+      if (parsed.copyCount) setCopyCount(Number(parsed.copyCount) || 1);
+    } catch {
+      // Ignore invalid local printer settings.
     }
   }, []);
 
-  if (isModal && !open) return null;
+  useEffect(() => {
+    if (!open) return;
 
-  // Local Refresh handler - Re-renders local view without making an API call
-  const handleLocalRefresh = () => {
-    setLastLocalRefresh(new Date().toLocaleTimeString('vi-VN'));
-    message.success('Đã làm mới giao diện phiếu in thành công! (Không gọi API)');
+    if (order) {
+      setLoadedOrder(order);
+    } else if (initialDetail) {
+      setLoadedOrder(initialDetail);
+    }
+
+    if (!effectiveReceipt) return;
+
+    let mounted = true;
+    setIsLoading(true);
+    setError(null);
+
+    orderService.getReceiptDetail(effectiveSite, effectiveReceipt, false)
+      .then(result => {
+        if (!mounted) return;
+        setLoadedOrder(result);
+        if (autoPrint) window.setTimeout(() => window.print(), 300);
+      })
+      .catch(err => {
+        if (!mounted) return;
+        setError(err?.message || 'Không thể tải dữ liệu chi tiết chứng từ để in.');
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [open, effectiveSite, effectiveReceipt, autoPrint]);
+
+  const detail = useMemo(() => {
+    if (isFullDetail(loadedOrder)) return loadedOrder;
+    if (isFullDetail(initialDetail) && !loadedOrder) return initialDetail;
+    return getOrderDetailFull(loadedOrder || order || initialDetail || {});
+  }, [loadedOrder, order, initialDetail]);
+
+  const raw = detail.rawJsonb || {};
+  const rawTotals = raw.receiptTotals || {};
+  const items = Array.isArray(detail.items) ? detail.items : [];
+  const subtotal = Number(rawTotals.totalItemAmount || rawTotals.TotalItemAmount || rawTotals.subTotal || rawTotals.subtotal || rawTotals.totalAmount || parseMoney(detail.totals?.subtotal) || 0);
+  const discountTotal = Number(rawTotals.totalDiscountAmount || rawTotals.TotalDiscountAmount || rawTotals.totalDiscount || rawTotals.discountTotal || rawTotals.discountAmount || parseMoney(detail.totals?.discountTotal) || 0);
+  const vatTotal = Number(rawTotals.totalVatAmount || rawTotals.TotalVatAmount || rawTotals.vatAmount || rawTotals.vatTotal || parseMoney(detail.totals?.vatTotal) || 0);
+  const totalAmount = Number(rawTotals.totalAmount ?? parseMoney(detail.totals?.totalAmount) ?? subtotal - discountTotal) || 0;
+  const paidAmount = Number(rawTotals.customerPaidAmount ?? parseMoney(detail.payment?.amountPaid) ?? totalAmount) || 0;
+  const changeAmount = Number(rawTotals.changeAmount ?? parseMoney(detail.payment?.changeAmount) ?? 0) || 0;
+  const amountInWords = textValue(rawTotals.totalAmountWithTaxInWords, numberToVietnameseWords(totalAmount));
+
+  const seller = {
+    legalName: textValue(raw.sellerInfo?.sellerLegalName || detail.store?.legalName || detail.store?.name),
+    storeName: textValue(raw.sellerInfo?.storeName || detail.store?.branch),
+    address: textValue(raw.sellerInfo?.storeAddress || raw.sellerInfo?.sellerAddressLine || detail.store?.address),
+    taxCode: textValue(raw.sellerInfo?.sellerTaxCode || detail.store?.taxCode),
+    website: textValue(raw.sellerInfo?.sellerWebsite || detail.store?.website),
+    invoiceSeries: textValue(raw.sellerInfo?.invoiceSeries || detail.store?.invoiceCode),
   };
 
-  // Test Printer Connection
-  const handleTestPrint = () => {
-    setIsTestingPrinter(true);
-    setTimeout(() => {
-      setIsTestingPrinter(false);
-      setIsConnected(true);
-      message.success(`Đã gửi lệnh in thử thành công tới máy in ${paperWidth.toUpperCase()} (${printerType === 'lan' ? printerIp : printerType.toUpperCase()})`);
-      // Save config to local storage
-      localStorage.setItem('k80_printer_config', JSON.stringify({
-        printerType,
-        printerIp,
-        printerPort,
+  const receipt = {
+    number: textValue(raw.receiptInfo?.receiptNumber || detail.order?.orderId || effectiveReceipt),
+    uuid: textValue(raw.receiptInfo?.uuid || detail.receiptVoucher?.uuid),
+    invoiceNumber: textValue(raw.receiptInfo?.invoiceNumber || detail.order?.invoiceNo),
+    transactionName: textValue(raw.receiptInfo?.transactionName || detail.order?.orderType),
+    businessType: textValue(raw.receiptInfo?.businessType || detail.receiptVoucher?.voucherType),
+    salesChannel: textValue(raw.receiptInfo?.salesChannel || detail.order?.salesChannel || effectiveSite),
+    time: formatDateTime(raw.receiptInfo?.receiptTime || detail.order?.createdAt),
+  };
+
+  const customer = {
+    code: textValue(raw.customer?.customerCode || detail.customer?.customerId),
+    name: textValue(raw.customer?.customerName || detail.customer?.fullName),
+    phone: textValue(raw.customer?.phoneNumber || detail.customer?.phone),
+    email: textValue(raw.customer?.email || detail.customer?.email),
+    tier: textValue(raw.customer?.membershipTier || detail.customer?.memberRank),
+  };
+
+  const buyer = {
+    name: textValue(raw.invoiceInfo?.buyerName || detail.vat?.fullName),
+    legalName: textValue(raw.invoiceInfo?.buyerLegalName || detail.vat?.companyName),
+    taxCode: textValue(raw.invoiceInfo?.buyerTaxCode || detail.vat?.taxCode),
+    address: textValue(raw.invoiceInfo?.buyerAddressLine || detail.vat?.companyAddress),
+    email: textValue(raw.invoiceInfo?.buyerEmail || detail.vat?.invoiceEmail),
+    phone: textValue(raw.invoiceInfo?.buyerPhoneNumber || detail.vat?.phone),
+  };
+
+  const employee = {
+    code: textValue(raw.employee?.employeeCode),
+    name: textValue(raw.employee?.employeeName || detail.employees?.cashier),
+    shift: textValue(raw.employee?.shiftName || detail.employees?.workShift),
+  };
+
+  const payments = Array.isArray(raw.payments) && raw.payments.length > 0
+    ? raw.payments
+    : (Array.isArray(detail.payment?.splits) ? detail.payment.splits : []);
+  const paymentName = textValue(payments[0]?.paymentMethodName || payments[0]?.paymentMethodCode || payments[0]?.method || detail.payment?.method);
+
+  const savePrinterConfig = () => {
+    localStorage.setItem(PRINTER_CONFIG_KEY, JSON.stringify({
+      printerType,
+      printerIp,
+      printerPort,
+      paperWidth,
+      autoCut,
+      copyCount,
+    }));
+  };
+
+  const buildPrinterText = (test = false) => {
+    const itemLines = items.map((item: any, index: number) => [
+      `${index + 1}. ${textValue(item.productName, 'San pham')}`,
+      `   ${Number(item.quantity || 0)} x ${Number(item.price || 0).toLocaleString('vi-VN')} = ${Number(item.total || 0).toLocaleString('vi-VN')}`,
+    ].join('\n'));
+
+    return [
+      seller.storeName,
+      seller.address,
+      `MST: ${seller.taxCode}`,
+      '--------------------------------',
+      test ? 'PHIEU TEST MAY IN' : 'PHIEU THANH TOAN',
+      `So CT: ${receipt.number}`,
+      `Thoi gian: ${receipt.time}`,
+      `Thu ngan: ${employee.name}`,
+      '--------------------------------',
+      ...itemLines,
+      '--------------------------------',
+      `Tong thanh toan: ${totalAmount.toLocaleString('vi-VN')}`,
+      `Thanh toan: ${paymentName}`,
+      `Khach dua: ${paidAmount.toLocaleString('vi-VN')}`,
+      `Tra lai: ${changeAmount.toLocaleString('vi-VN')}`,
+      '--------------------------------',
+      'Cam on Quy khach',
+    ].filter(Boolean).join('\n');
+  };
+
+  const callPrinterApi = async (url: string, test = false) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        host: printerIp,
+        port: Number(printerPort || 9100),
         paperWidth,
         autoCut,
-        copyCount,
-      }));
-    }, 1200);
+        copies: test ? 1 : copyCount,
+        receiptNumber: receipt.number,
+        content: buildPrinterText(test),
+      }),
+    });
+    const json = await response.json().catch(() => null);
+    if (!response.ok || json?.success === false) {
+      throw new Error(json?.message || `Không thể kết nối máy in ${printerIp}:${printerPort}`);
+    }
+    return json;
   };
 
-  const handlePrint = () => {
-    if (printerType === 'lan' || printerType === 'usb') {
-      message.loading({ content: `Đang truyền dữ liệu in lệnh ESC/POS tới máy in ${printerIp}...`, key: 'print' });
-      setTimeout(() => {
-        message.success({ content: `Đã in thành công ${copyCount} liên phiếu ${paperWidth.toUpperCase()}! ${autoCut ? '(Đã cắt giấy)' : ''}`, key: 'print' });
-        window.print();
-      }, 800);
-    } else {
+  const handleTestPrint = async () => {
+    if (printerType !== 'lan') {
       window.print();
+      return;
+    }
+
+    setIsTestingPrinter(true);
+    try {
+      await callPrinterApi('/api/printer/test', true);
+      setIsConnected(true);
+      savePrinterConfig();
+      message.success(`Đã gửi phiếu test tới máy in ${printerIp}:${printerPort}`);
+    } catch (err: any) {
+      setIsConnected(false);
+      message.error(err.message || 'Không thể in test.');
+    } finally {
+      setIsTestingPrinter(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (activeTab === 'vat' || printerType === 'driver') {
+      window.print();
+      return;
+    }
+
+    setIsPrinting(true);
+    message.loading({ content: `Đang gửi lệnh in tới ${printerIp}:${printerPort}...`, key: 'print' });
+    try {
+      await callPrinterApi('/api/printer/print');
+      setIsConnected(true);
+      savePrinterConfig();
+      message.success({ content: `Đã gửi ${copyCount} phiếu ${paperWidth.toUpperCase()} tới máy in.`, key: 'print' });
+    } catch (err: any) {
+      setIsConnected(false);
+      message.error({ content: err.message || 'Không thể gửi lệnh in.', key: 'print' });
+    } finally {
+      setIsPrinting(false);
     }
   };
 
   const handleDownloadPDF = () => {
-    message.loading('Đang xuất file PDF Hóa đơn...', 1.2).then(() => {
-      message.success(`Đã tải xuống file e-Invoice_${effectiveReceipt}.pdf!`);
-    });
+    message.info('Trình duyệt sẽ mở hộp thoại in. Chọn "Save as PDF" để lưu hóa đơn.');
+    window.print();
   };
 
-  // Always parse detailData (from API or seed) or order into full OrderDetailFull structure
-  const detail = getOrderDetailFull(detailData || order);
-  const productsList = detail.items && detail.items.length > 0 ? detail.items : [];
-  
-  // Calculate financial totals dynamically
-  const itemsSumTotal = productsList.reduce((sum: number, item: any) => sum + (item.total || 0), 0);
-  const itemsDiscountSum = productsList.reduce((sum: number, item: any) => sum + (item.discount || 0), 0);
-  const itemsVatSum = productsList.reduce((sum: number, item: any) => sum + (item.vat || 0), 0);
-  
-  const totalAmount = itemsSumTotal > 0 ? itemsSumTotal : (order?.total || 0);
-  const discountAmount = itemsDiscountSum;
-  const vatAmount = itemsVatSum > 0 ? itemsVatSum : Math.round(totalAmount * 0.08 / 1.08);
-  const subtotalBeforeVat = totalAmount - vatAmount;
+  const handleLocalRefresh = () => {
+    setLastRefreshAt(new Date().toLocaleTimeString('vi-VN'));
+    message.success('Đã làm mới giao diện phiếu in.');
+  };
 
-  // Store & Cashier Metadata
-  const cashierName = detail.employees?.cashier !== 'Không có dữ liệu' 
-    ? detail.employees?.cashier 
-    : (detail.store?.cashier !== 'Không có dữ liệu' ? detail.store?.cashier : order?.employee || 'Nguyễn Văn A (POS-01)');
-  const sellerLegalName = detail.store?.legalName !== 'Không có dữ liệu' ? detail.store?.legalName : 'CÔNG TY TNHH SẢN XUẤT HÀNG TIÊU DÙNG BÌNH TIÊN';
-  const sellerBranch = detail.store?.branch !== 'Không có dữ liệu' ? detail.store?.branch : 'CHTT BITI\'S THÁP MƯỜI';
-  const sellerAddress = detail.store?.address !== 'Không có dữ liệu' ? detail.store?.address : '24 Lý Chiêu Hoàng, Phường Bình Phú, Quận 6, TP.HCM';
-  const sellerTaxCode = detail.store?.taxCode !== 'Không có dữ liệu' ? detail.store?.taxCode : '0301340497-035';
-  const sellerHotline = detail.store?.hotline !== 'Không có dữ liệu' ? detail.store?.hotline : '1900 6868';
-  const bankAccountInfo = (detail.payment as any)?.reference && (detail.payment as any)?.reference !== 'Không có dữ liệu' 
-    ? (detail.payment as any)?.reference 
-    : '190388889999 - MB Bank';
-  
-  const formNo = detail.vat?.formNo || '1/001';
-  const serialNo = detail.vat?.serialNo !== 'Không có dữ liệu' ? detail.vat?.serialNo : 'C25MAC';
-  const eInvoiceNo = (detail.vat?.eInvoiceNo && detail.vat?.eInvoiceNo !== 'Không có dữ liệu' && detail.vat?.eInvoiceNo !== 'Chưa xuất') 
-    ? detail.vat?.eInvoiceNo 
-    : (detail.order?.invoiceId && detail.order?.invoiceId !== 'Không có dữ liệu' ? detail.order?.invoiceId : effectiveReceipt);
+  const printStyles = (
+    <style>{`
+      @media print {
+        body * { visibility: hidden !important; }
+        #printable-invoice-content, #printable-invoice-content * { visibility: visible !important; }
+        #printable-invoice-content {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #fff !important;
+          color: #000 !important;
+          box-shadow: none !important;
+          border: 0 !important;
+        }
+        .no-print, .no-print * { display: none !important; }
+        .print-a4 {
+          width: 190mm !important;
+          min-height: 277mm !important;
+          margin: 0 auto !important;
+          padding: 8mm !important;
+          box-shadow: none !important;
+          border: 0 !important;
+        }
+        .print-k80 {
+          width: 76mm !important;
+          max-width: 76mm !important;
+          margin: 0 auto !important;
+          padding: 2mm !important;
+          box-shadow: none !important;
+          border: 0 !important;
+          font-size: 10px !important;
+        }
+      }
+    `}</style>
+  );
 
-  const buyerCompanyName = (detail.vat?.companyName && detail.vat?.companyName !== 'Không có dữ liệu') 
-    ? detail.vat?.companyName 
-    : (detail.customer?.fullName && detail.customer?.fullName !== 'Không có dữ liệu' ? detail.customer?.fullName : 'Khách hàng cá nhân');
-  const buyerTaxCode = (detail.vat?.taxCode && detail.vat?.taxCode !== 'Không có dữ liệu') 
-    ? detail.vat?.taxCode 
-    : '---';
-  const buyerAddress = (detail.vat?.companyAddress && detail.vat?.companyAddress !== 'Không có dữ liệu') 
-    ? detail.vat?.companyAddress 
-    : (detail.customer?.address && detail.customer?.address !== 'Không có dữ liệu' ? detail.customer?.address : 'Khách hàng không cung cấp thông tin');
+  const receiptDate = new Date(textValue(raw.receiptInfo?.receiptTime || detail.order?.createdAt));
+  const printDay = !Number.isNaN(receiptDate.getTime()) ? String(receiptDate.getDate()).padStart(2, '0') : '...';
+  const printMonth = !Number.isNaN(receiptDate.getTime()) ? String(receiptDate.getMonth() + 1).padStart(2, '0') : '...';
+  const printYear = !Number.isNaN(receiptDate.getTime()) ? String(receiptDate.getFullYear()) : '...';
 
-  const amountInWords = (detail.rawJsonb?.receiptTotals?.totalAmountWithTaxInWords)
-    ? detail.rawJsonb.receiptTotals.totalAmountWithTaxInWords
-    : numberToVietnameseWords(totalAmount);
+  const a4Invoice = (
+    <section className="print-a4 mx-auto max-w-[794px] bg-white text-black shadow-sm border border-black rounded-sm p-4 text-[12px] leading-relaxed relative" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
+      
+      {/* Header */}
+      <div className="relative pb-2 flex justify-between items-start">
+        {/* Logo Left */}
+        <div className="w-1/4 text-left">
+           {metadata?.logoUrlVAT && <img src={metadata.logoUrlVAT} alt="Logo" className="max-w-[120px] max-h-[80px] object-contain" />}
+        </div>
+        
+        {/* Center Title */}
+        <div className="flex-1 text-center">
+          <h1 className="m-0 text-[18px] font-bold uppercase">Hóa đơn giá trị gia tăng</h1>
+          <div className="italic">(VAT INVOICE)</div>
+          <div className="mt-1 font-bold">Bản thể hiện của hóa đơn điện tử</div>
+          <div className="italic">(Electronic invoice display)</div>
+          <div className="mt-2">
+            Ngày <span className="italic">(date)</span> {printDay} tháng <span className="italic">(month)</span> {printMonth} năm <span className="italic">(year)</span> {printYear}
+          </div>
+        </div>
+        
+        {/* Right Info */}
+        <div className="w-1/4 text-right">
+          <div className="flex justify-end gap-2">
+            <span>Ký hiệu <span className="italic">(Serial)</span>:</span>
+            <span className="font-bold">{seller.invoiceSeries}</span>
+          </div>
+          <div className="flex justify-end gap-2 mt-1">
+            <span>Số <span className="italic">(Invoice No)</span>:</span>
+            <span className="font-bold">{receipt.invoiceNumber}</span>
+          </div>
+        </div>
+      </div>
 
-  const createdAtText = detail.order?.createdAt !== 'Không có dữ liệu' ? detail.order?.createdAt : (order?.time || new Date().toLocaleString('vi-VN'));
-  const customerName = detail.customer?.fullName !== 'Không có dữ liệu' ? detail.customer?.fullName : (order?.customer || 'Khách hàng lẻ');
-  const customerPhone = detail.customer?.phone !== 'Không có dữ liệu' ? detail.customer?.phone : (order?.phone || 'Chưa cập nhật');
-  const paymentMethodText = detail.payment?.method !== 'Không có dữ liệu' ? detail.payment?.method : (order?.paymentInfo?.paymentMethod || 'Tiền mặt/Chuyển khoản');
+      {/* Seller Info */}
+      <div className="border-t border-black pt-1 pb-1">
+        <div><span className="font-bold">Đơn vị bán hàng <span className="italic">(Seller)</span>:</span> {seller.legalName}</div>
+        <div><span className="font-bold">Mã số thuế <span className="italic">(Tax code)</span>:</span> <span className="font-bold">{seller.taxCode}</span></div>
+        <div><span className="font-bold">Địa chỉ <span className="italic">(Address)</span>:</span> {seller.address}</div>
+        <div><span className="font-bold">Tên cửa hàng <span className="italic">(Store's name)</span>:</span> {seller.storeName}</div>
+        <div><span className="font-bold">Địa chỉ cửa hàng <span className="italic">(Store's adress)</span>:</span> {textValue(raw.sellerInfo?.storeAddress, seller.address)}</div>
+      </div>
+
+      {/* Buyer Info */}
+      <div className="border-t border-black pt-1 pb-1">
+        <div><span className="font-bold">Họ tên người mua hàng <span className="italic">(Buyer)</span>:</span> {buyer.name}</div>
+        <div><span className="font-bold">Tên đơn vị <span className="italic">(Company's name)</span>:</span> {buyer.legalName}</div>
+        <div><span className="font-bold">Địa chỉ <span className="italic">(Address)</span>:</span> {buyer.address}</div>
+        <div><span className="font-bold">Mã số thuế <span className="italic">(Tax code)</span>:</span> {buyer.taxCode}</div>
+        <div className="flex justify-between w-[80%]">
+          <div><span className="font-bold">Phương thức thanh toán <span className="italic">(Payment method)</span>:</span> {paymentName}</div>
+          <div><span className="font-bold">Số tài khoản <span className="italic">(Bank account)</span>:</span> </div>
+        </div>
+        <div><span className="font-bold">Ghi chú <span className="italic">(Note)</span>:</span> </div>
+        
+        {/* Extra data section (kept as requested) */}
+        <div className="grid grid-cols-2 mt-1 text-[11px]">
+            <div><span className="font-bold">SĐT:</span> {buyer.phone !== '—' ? buyer.phone : customer.phone}</div>
+            <div><span className="font-bold">Email:</span> {buyer.email !== '—' ? buyer.email : customer.email}</div>
+            <div><span className="font-bold">Mã KH:</span> {customer.code}</div>
+            <div><span className="font-bold">Kênh bán:</span> {receipt.salesChannel}</div>
+            <div><span className="font-bold">Mã đơn hàng:</span> {receipt.uuid}</div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <table className="w-full border-collapse text-left border border-black mt-1">
+        <thead>
+          <tr>
+            <th className="border border-black p-1 text-center font-bold">STT<br/><span className="italic font-normal">(No.)</span></th>
+            <th className="border border-black p-1 text-center font-bold">Mã hàng<br/><span className="italic font-normal">(Item code)</span></th>
+            <th className="border border-black p-1 text-center font-bold w-1/3">Tên hàng hóa, dịch vụ<br/><span className="italic font-normal">(Description)</span></th>
+            <th className="border border-black p-1 text-center font-bold">Đơn<br/>vị tính<br/><span className="italic font-normal">(Unit)</span></th>
+            <th className="border border-black p-1 text-center font-bold">Số lượng<br/><span className="italic font-normal">(Quantity)</span></th>
+            <th className="border border-black p-1 text-center font-bold">Đơn giá<br/><span className="italic font-normal">(Unit price)</span></th>
+            <th className="border border-black p-1 text-center font-bold">Thành tiền<br/><span className="italic font-normal">(Amount)</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item: any, index: number) => (
+            <tr key={`${item.sku}-${index}`}>
+              <td className="border border-black p-1 text-center">{index + 1}</td>
+              <td className="border border-black p-1 text-center font-mono">{textValue(item.sku)}</td>
+              <td className="border border-black p-1">{textValue(item.productName)}</td>
+              <td className="border border-black p-1 text-center">{textValue(item.unit)}</td>
+              <td className="border border-black p-1 text-right">{Number(item.quantity || 0)}</td>
+              <td className="border border-black p-1 text-right">{money(item.price)}</td>
+              <td className="border border-black p-1 text-right">{money(item.total)}</td>
+            </tr>
+          ))}
+
+        </tbody>
+        <tfoot>
+            <tr>
+              <td colSpan={6} className="border border-black p-1 text-right font-bold">Cộng tiền hàng <span className="italic font-normal">(Total Item Amount):</span></td>
+              <td className="border border-black p-1 text-right">{money(subtotal)}</td>
+            </tr>
+            {discountTotal > 0 && (
+              <tr>
+                <td colSpan={6} className="border border-black p-1 text-right font-bold">Tổng tiền chiết khấu <span className="italic font-normal">(Total Discount Amount):</span></td>
+                <td className="border border-black p-1 text-right">{money(discountTotal)}</td>
+              </tr>
+            )}
+            <tr>
+              <td colSpan={2} className="border border-black p-1 text-center font-bold">Thuế suất GTGT<br/><span className="italic font-normal">(VAT rate):</span></td>
+              <td colSpan={4} className="border border-black p-1 text-right font-bold">Tổng thuế GTGT <span className="italic font-normal">(Total VAT Amount):</span></td>
+              <td className="border border-black p-1 text-right">{money(vatTotal)}</td>
+            </tr>
+            <tr>
+              <td colSpan={6} className="border border-black p-1 text-right font-bold">Tổng cộng tiền thanh toán <span className="italic font-normal">(Total amount):</span></td>
+              <td className="border border-black p-1 text-right font-bold">{money(totalAmount)}</td>
+            </tr>
+        </tfoot>
+      </table>
+
+      {/* Amount in words */}
+      <div className="pt-2 pb-2 border-b border-black">
+        <div><span className="font-bold">Số tiền viết bằng chữ <span className="italic font-normal">(Amount in words):</span></span> {amountInWords}</div>
+      </div>
+
+      {/* Signatures */}
+      <div className="grid grid-cols-3 text-center mt-2 pb-24">
+        <div>
+          <div className="font-bold">Khách</div>
+          <div className="italic text-[11px]">(Ký, ghi rõ họ tên)</div>
+          <div className="mt-12 font-bold">{buyer.name}</div>
+        </div>
+        <div>
+          <div className="font-bold">Thu ngân</div>
+          <div className="italic text-[11px]">(Ký, ghi rõ họ tên)</div>
+          <div className="mt-12 font-bold">{employee.name}</div>
+        </div>
+        <div>
+          <div className="font-bold">Quản lý ca</div>
+          <div className="italic text-[11px]">(Ký, ghi rõ họ tên)</div>
+          <div className="mt-12"></div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const k80Receipt = (
+    <section className="print-k80 mx-auto w-full max-w-[340px] bg-white text-slate-950 shadow-lg border border-slate-300 p-4 font-mono text-[11px] leading-tight">
+      <header className="text-center border-b border-dashed border-slate-900 pb-2">
+        <div className="font-black text-[16px] font-sans">BITI'S</div>
+        <div className="mt-1 font-bold uppercase">{seller.storeName}</div>
+        <div className="mt-1 text-[10px]">{seller.address}</div>
+        <div className="mt-1 text-[10px]">MST: {seller.taxCode}</div>
+      </header>
+
+      <section className="border-b border-dashed border-slate-900 py-2 text-center">
+        <div className="font-black uppercase font-sans text-[14px]">Phiếu thanh toán</div>
+        <div>Số CT: <strong>{receipt.number}</strong></div>
+        <div>{receipt.time}</div>
+      </section>
+
+      <section className="border-b border-dashed border-slate-900 py-2 text-[10px]">
+        <div className="flex justify-between gap-2"><span>Thu ngân</span><strong className="text-right">{employee.name}</strong></div>
+        <div className="flex justify-between gap-2"><span>Ca</span><strong>{employee.shift}</strong></div>
+        <div className="flex justify-between gap-2"><span>Khách hàng</span><strong className="text-right">{customer.name}</strong></div>
+        <div className="flex justify-between gap-2"><span>Điện thoại</span><strong>{customer.phone}</strong></div>
+      </section>
+
+      <section className="border-b border-slate-900 py-2">
+        <div className="grid grid-cols-12 border-b border-slate-400 pb-1 text-[10px] font-bold uppercase">
+          <div className="col-span-7">Hàng hóa</div>
+          <div className="col-span-2 text-center">SL</div>
+          <div className="col-span-3 text-right">Tiền</div>
+        </div>
+        <div className="space-y-2 pt-2">
+          {items.map((item: any, index: number) => (
+            <div key={`${item.sku}-k80-${index}`}>
+              <div className="font-bold">{index + 1}. {textValue(item.productName)}</div>
+              <div className="text-[9px] text-slate-600">SKU: {textValue(item.sku)} · {textValue(item.barcode)}</div>
+              <div className="grid grid-cols-12">
+                <div className="col-span-7">{money(item.price)}</div>
+                <div className="col-span-2 text-center">{Number(item.quantity || 0)}</div>
+                <div className="col-span-3 text-right font-bold">{money(item.total)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-b border-double border-slate-900 py-2 space-y-1">
+        <div className="flex justify-between"><span>Cộng tiền hàng</span><strong>{money(subtotal)}</strong></div>
+        {discountTotal > 0 && <div className="flex justify-between"><span>Tổng tiền chiết khấu</span><strong>{money(discountTotal)}</strong></div>}
+        <div className="flex justify-between"><span>Tổng thuế GTGT (VAT)</span><strong>{money(vatTotal)}</strong></div>
+        <div className="flex justify-between text-[13px] font-black border-t border-slate-900 pt-1"><span>Tổng cộng</span><span>{money(totalAmount)}</span></div>
+        <div className="flex justify-between"><span>Thanh toán</span><strong>{paymentName}</strong></div>
+        <div className="flex justify-between"><span>Khách đưa</span><strong>{money(paidAmount)}</strong></div>
+        <div className="flex justify-between"><span>Trả lại</span><strong>{money(changeAmount)}</strong></div>
+      </section>
+
+      <footer className="pt-3 text-center text-[10px]">
+        <div className="font-mono tracking-widest border border-slate-300 py-1">*{receipt.number}*</div>
+        <div className="mt-2">UUID: {receipt.uuid}</div>
+        <div className="mt-1">Cảm ơn Quý khách và hẹn gặp lại.</div>
+      </footer>
+    </section>
+  );
 
   const documentContent = (
     <div className="print-document-wrapper">
-      {/* Print Stylesheet */}
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden !important;
-          }
-          #printable-invoice-content, #printable-invoice-content * {
-            visibility: visible !important;
-          }
-          #printable-invoice-content {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: #ffffff !important;
-            color: #000000 !important;
-            box-shadow: none !important;
-            border: none !important;
-          }
-          .no-print, .no-print * {
-            display: none !important;
-          }
-        }
-      `}</style>
-
-      {/* Main Container */}
-      <div id="printable-invoice-content">
+      {printStyles}
+      <div id="printable-invoice-content" className={activeTab === 'vat' ? 'bg-white p-3' : 'bg-slate-200 p-4 print:bg-white print:p-0'}>
         {isLoading ? (
-          <div className="py-20 text-center flex flex-col items-center justify-center gap-3 bg-white rounded-xl my-2 border border-slate-100 no-print">
-            <Spin indicator={<LoadingOutlined style={{ fontSize: 36 }} spin />} />
-            <div className="text-slate-700 font-bold text-sm">
-              Đang truy xuất dữ liệu phiếu thu từ hệ thống...
-            </div>
-            <div className="text-slate-400 text-xs font-mono bg-slate-50 px-3 py-1 rounded border border-slate-200">
-              Mã đơn: {effectiveReceipt}
-            </div>
+          <div className="no-print flex min-h-[360px] flex-col items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white">
+            <Spin indicator={<LoadingOutlined style={{ fontSize: 32 }} spin />} />
+            <div className="font-bold text-slate-700">Đang tải dữ liệu chi tiết chứng từ...</div>
+            <code className="rounded bg-slate-100 px-2 py-1 text-xs">{effectiveReceipt}</code>
           </div>
         ) : error ? (
-          <div className="py-12 text-center text-rose-600 space-y-2 no-print">
-            <div className="font-bold text-base">Không thể hiển thị phiếu thu</div>
-            <div className="text-xs text-slate-500 font-mono">{error}</div>
+          <div className="no-print flex min-h-[260px] flex-col items-center justify-center gap-2 text-center text-rose-600">
+            <ExclamationCircleOutlined className="text-2xl" />
+            <div className="font-bold">Không thể tải phiếu in</div>
+            <div className="text-xs text-slate-500">{error}</div>
           </div>
-        ) : activeTab === 'vat' ? (
-          /* A4 Full VAT Tax Invoice Layout */
-          <div className="p-3 sm:p-6 bg-white border border-slate-200 rounded-xl my-2 shadow-sm font-sans text-slate-800 text-xs leading-relaxed max-h-[70vh] overflow-y-auto print:max-h-none print:shadow-none print:border-0 print:p-0">
-            
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start border-b-2 border-blue-600 pb-4 mb-4 gap-4">
-              <div className="space-y-1 max-w-full md:max-w-[480px]">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="bg-blue-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded tracking-wider uppercase">{sellerBranch}</span>
-                  <span className="font-extrabold text-xs sm:text-sm text-slate-900 uppercase">{sellerLegalName}</span>
-                </div>
-                <div className="text-[11px] text-slate-600">
-                  <strong>Địa chỉ:</strong> {sellerAddress}
-                </div>
-                <div className="text-[11px] text-slate-600 flex flex-wrap gap-x-4 gap-y-0.5">
-                  <span><strong>Mã số thuế:</strong> {sellerTaxCode}</span>
-                  <span><strong>Hotline:</strong> {sellerHotline}</span>
-                </div>
-                <div className="text-[11px] text-slate-600">
-                  <span><strong>Tài khoản NH:</strong> {bankAccountInfo}</span>
-                </div>
-              </div>
-
-              <div className="text-left md:text-right space-y-1 bg-slate-50 md:bg-transparent p-2 md:p-0 rounded-lg w-full md:w-auto">
-                <div className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">Mẫu số / Ký hiệu</div>
-                <div className="font-mono text-xs text-blue-700 font-bold">{formNo} - {serialNo}</div>
-                <div className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase mt-1">Số hóa đơn</div>
-                <div className="font-mono text-xs sm:text-sm text-rose-600 font-extrabold">{eInvoiceNo}</div>
-              </div>
-            </div>
-
-            {/* Title */}
-            <div className="text-center my-4 sm:my-5">
-              <h2 className="text-base sm:text-lg font-black uppercase text-blue-950 tracking-wide m-0">HÓA ĐƠN GIÁ TRỊ GIA TĂNG (VAT)</h2>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 italic mt-0.5">(Hóa đơn điện tử chuyển đổi từ hệ thống cơ sở dữ liệu bán hàng)</p>
-              <div className="text-[11px] text-slate-600 mt-1">
-                Ngày lập: <span className="font-semibold">{createdAtText}</span>
-              </div>
-            </div>
-
-            {/* Customer Info */}
-            <div className="bg-slate-50 p-3 sm:p-3.5 rounded-lg border border-slate-200/80 mb-4 sm:mb-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
-              <div><strong>Tên người mua hàng:</strong> {customerName}</div>
-              <div><strong>Mã đơn hàng:</strong> <span className="font-mono font-bold text-blue-600">{effectiveReceipt}</span></div>
-              <div><strong>Đơn vị mua hàng:</strong> {buyerCompanyName}</div>
-              <div><strong>SĐT liên hệ:</strong> {customerPhone}</div>
-              <div><strong>Mã số thuế VAT:</strong> <span className="font-mono">{buyerTaxCode}</span></div>
-              <div><strong>Kênh bán hàng:</strong> {detail.order?.salesChannel !== 'Không có dữ liệu' ? detail.order?.salesChannel : effectiveSite}</div>
-              <div className="sm:col-span-2"><strong>Địa chỉ giao hàng / Công ty:</strong> {buyerAddress}</div>
-              <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
-                <strong>Hình thức thanh toán:</strong> {paymentMethodText} - <Tag color="green" className="font-bold border-0 text-[10px] m-0">ĐÃ THANH TOÁN</Tag>
-              </div>
-            </div>
-
-            {/* Items Table */}
-            <div className="mb-5 overflow-x-auto border border-slate-200 rounded-lg">
-              <table className="w-full min-w-[640px] text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-100 text-slate-700 font-bold text-[11px] uppercase border-b border-slate-200">
-                    <th className="p-2 border-r border-slate-200 text-center w-10">STT</th>
-                    <th className="p-2 border-r border-slate-200">Mã SKU</th>
-                    <th className="p-2 border-r border-slate-200">Tên hàng hóa, dịch vụ</th>
-                    <th className="p-2 border-r border-slate-200 text-center">ĐVT</th>
-                    <th className="p-2 border-r border-slate-200 text-center">SL</th>
-                    <th className="p-2 border-r border-slate-200 text-right">Đơn giá (₫)</th>
-                    <th className="p-2 border-r border-slate-200 text-right">Chiết khấu</th>
-                    <th className="p-2 text-right">Thành tiền (₫)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {productsList.length > 0 ? (
-                    productsList.map((p: any, idx: number) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="p-2 border-r border-slate-200 text-center font-mono text-[11px]">{idx + 1}</td>
-                        <td className="p-2 border-r border-slate-200 font-mono text-[11px] font-semibold text-slate-600">{p.sku || 'N/A'}</td>
-                        <td className="p-2 border-r border-slate-200 font-medium">
-                          <div>{p.productName || 'Sản phẩm Biti\'s'}</div>
-                          <div className="text-[10px] text-slate-400">Phân loại: {p.color || 'Gốc'} - {p.size || 'Standard'}</div>
-                        </td>
-                        <td className="p-2 border-r border-slate-200 text-center">{p.unit || 'Đôi'}</td>
-                        <td className="p-2 border-r border-slate-200 text-center font-bold">{p.quantity || 1}</td>
-                        <td className="p-2 border-r border-slate-200 text-right font-mono">{(p.price || 0).toLocaleString('vi-VN')}</td>
-                        <td className="p-2 border-r border-slate-200 text-right font-mono text-rose-600">
-                          {p.discount > 0 ? `-${p.discount.toLocaleString('vi-VN')}` : '0'}
-                        </td>
-                        <td className="p-2 text-right font-mono font-bold text-slate-800">{(p.total || 0).toLocaleString('vi-VN')}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={8} className="p-4 text-center text-slate-400 italic">
-                        Không có chi tiết sản phẩm.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Financial Totals */}
-            <div className="flex flex-col md:flex-row justify-between items-start gap-4 border-t border-slate-200 pt-4 mb-6">
-              <div className="flex-1 space-y-2 w-full md:w-auto">
-                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                  <div className="text-[11px] font-bold text-slate-600">Số tiền bằng chữ:</div>
-                  <div className="text-xs font-semibold italic text-blue-900 mt-0.5">
-                    {amountInWords}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-1">
-                  <SafetyCertificateOutlined className="text-emerald-600" />
-                  <span>Chữ ký số đã được xác thực bởi Cục Thuế</span>
-                </div>
-              </div>
-
-              <div className="w-full md:w-72 space-y-1.5 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">
-                <div className="flex justify-between text-slate-600">
-                  <span>Cộng tiền hàng (chưa VAT):</span>
-                  <span className="font-mono">{subtotalBeforeVat.toLocaleString('vi-VN')} ₫</span>
-                </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Thuế suất GTGT (8%):</span>
-                  <span className="font-mono">{vatAmount.toLocaleString('vi-VN')} ₫</span>
-                </div>
-                {discountAmount > 0 && (
-                  <div className="flex justify-between text-rose-600">
-                    <span>Tổng giảm giá / Voucher:</span>
-                    <span className="font-mono">-{discountAmount.toLocaleString('vi-VN')} ₫</span>
-                  </div>
-                )}
-                <div className="border-t border-slate-300 pt-2 flex justify-between font-extrabold text-xs sm:text-sm text-slate-900">
-                  <span>TỔNG CỘNG THANH TOÁN:</span>
-                  <span className="text-blue-700 font-mono">{totalAmount.toLocaleString('vi-VN')} ₫</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Signatures */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center mt-6 pt-4 border-t border-dashed border-slate-200">
-              <div className="p-2 bg-slate-50 sm:bg-transparent rounded-lg">
-                <div className="font-bold text-slate-800">NGƯỜI MUA HÀNG</div>
-                <div className="text-[10px] text-slate-400 italic mt-0.5">(Ký, ghi rõ họ tên)</div>
-                <div className="h-12 sm:h-16 flex items-end justify-center text-slate-500 italic text-[11px]">
-                  {customerName}
-                </div>
-              </div>
-
-              <div className="p-2 bg-slate-50 sm:bg-transparent rounded-lg">
-                <div className="font-bold text-slate-800">NGƯỜI BÁN / THỦ KHO</div>
-                <div className="text-[10px] text-slate-400 italic mt-0.5">(Ký, đóng dấu)</div>
-                <div className="h-12 sm:h-16 flex items-end justify-center font-semibold text-slate-700 text-xs">
-                  {cashierName}
-                </div>
-              </div>
-
-              <div className="p-2 bg-slate-50 sm:bg-transparent rounded-lg">
-                <div className="font-bold text-slate-800">ĐƠN VỊ PHÁT HÀNH</div>
-                <div className="text-[10px] text-slate-400 italic mt-0.5">(Chữ ký số CA)</div>
-                <div className="h-12 sm:h-16 flex flex-col items-center justify-end">
-                  <div className="border border-emerald-500 text-emerald-700 bg-emerald-50 text-[9px] px-2 py-0.5 rounded font-mono font-bold flex items-center gap-1">
-                    <CheckCircleOutlined /> DIGITAL SIGNED
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* REDESIGNED REALISTIC POS K80 THERMAL RECEIPT */
-          <div className="p-3 sm:p-6 bg-slate-200 flex justify-center max-h-[72vh] overflow-y-auto print:max-h-none print:bg-white print:p-0">
-            <div className="w-full max-w-[340px] bg-white text-slate-900 shadow-2xl p-5 border border-slate-300 font-mono text-[11px] leading-tight select-none print:shadow-none print:border-0 print:p-2 print:max-w-none relative">
-              
-              {/* Paper Zig-Zag top border simulation */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-[radial-gradient(circle,_transparent_3px,_#f1f5f9_3px)] bg-[length:8px_8px] -mt-1 print:hidden" />
-
-              {/* Brand Header */}
-              <div className="text-center space-y-1 pb-2 border-b border-dashed border-slate-800">
-                <div className="font-black text-base uppercase tracking-wider text-slate-950 font-sans">
-                  BITI'S
-                </div>
-                <div className="font-bold text-xs uppercase tracking-tight text-slate-900">
-                  {sellerBranch}
-                </div>
-                <div className="text-[10px] text-slate-700">{sellerAddress}</div>
-                <div className="text-[10px] text-slate-700 flex justify-center gap-2">
-                  <span>Hotline: {sellerHotline}</span>
-                  <span>|</span>
-                  <span>MST: {sellerTaxCode}</span>
-                </div>
-              </div>
-
-              {/* Bill Title & Invoice Info */}
-              <div className="py-2.5 text-center space-y-1 border-b border-slate-800 border-double">
-                <div className="font-extrabold text-sm uppercase tracking-wide text-slate-950 font-sans">
-                  PHIẾU THANH TOÁN (K80)
-                </div>
-                <div className="text-[10px] font-bold text-slate-800">
-                  Số HĐ: <span className="text-xs font-black">{effectiveReceipt}</span>
-                </div>
-                <div className="text-[10px] text-slate-600">
-                  Thời gian: {createdAtText}
-                </div>
-              </div>
-
-              {/* Cashier & Customer Info */}
-              <div className="py-2 space-y-1 text-[10px] border-b border-dashed border-slate-800">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Thu ngân:</span>
-                  <span className="font-bold text-slate-900">{cashierName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Khách hàng:</span>
-                  <span className="font-bold text-slate-900">{customerName}</span>
-                </div>
-                {customerPhone !== 'Chưa cập nhật' && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">SĐT:</span>
-                    <span>{customerPhone}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Máy POS:</span>
-                  <span>POS-01 (Khu vực HCM)</span>
-                </div>
-              </div>
-
-              {/* Items List Table */}
-              <div className="py-2.5 space-y-2.5 border-b border-slate-800">
-                <div className="grid grid-cols-12 font-bold text-[10px] uppercase border-b border-slate-400 pb-1 text-slate-800">
-                  <div className="col-span-6">Tên sản phẩm</div>
-                  <div className="col-span-2 text-center">SL</div>
-                  <div className="col-span-4 text-right">Thành tiền</div>
-                </div>
-
-                {productsList.map((p: any, idx: number) => (
-                  <div key={idx} className="space-y-0.5 border-b border-slate-100 last:border-0 pb-1">
-                    <div className="font-bold text-[11px] text-slate-950 leading-snug">
-                      {idx + 1}. {p.productName || 'Sản phẩm Biti\'s'}
-                    </div>
-                    <div className="text-[9px] text-slate-500 pl-3">
-                      SKU: {p.sku || 'N/A'} {p.size ? `| Size: ${p.size}` : ''} {p.color ? `| Màu: ${p.color}` : ''}
-                    </div>
-                    <div className="grid grid-cols-12 text-[10px] text-slate-800 font-semibold pl-3">
-                      <div className="col-span-6 text-slate-600">
-                        {p.quantity || 1} x {(p.price || 0).toLocaleString('vi-VN')}₫
-                      </div>
-                      <div className="col-span-2 text-center text-slate-500">
-                        {p.discount > 0 ? `-${p.discount.toLocaleString('vi-VN')}` : ''}
-                      </div>
-                      <div className="col-span-4 text-right font-extrabold text-slate-950">
-                        {(p.total || 0).toLocaleString('vi-VN')}₫
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Financial Calculations Breakdown */}
-              <div className="py-2.5 space-y-1.5 text-[10px] border-b border-slate-900 border-double">
-                <div className="flex justify-between text-slate-700">
-                  <span>Cộng tiền hàng ({productsList.length} món):</span>
-                  <span className="font-semibold">{(totalAmount + discountAmount).toLocaleString('vi-VN')} ₫</span>
-                </div>
-                
-                {discountAmount > 0 && (
-                  <div className="flex justify-between text-rose-700 font-bold">
-                    <span>Chiết khấu / Khuyến mãi:</span>
-                    <span>-{discountAmount.toLocaleString('vi-VN')} ₫</span>
-                  </div>
-                )}
-
-                <div className="flex justify-between text-slate-600 italic">
-                  <span>Thuế GTGT (VAT 8% bao gồm):</span>
-                  <span>{vatAmount.toLocaleString('vi-VN')} ₫</span>
-                </div>
-
-                <div className="pt-2 border-t border-slate-900 flex justify-between font-extrabold text-xs text-slate-950">
-                  <span>TỔNG THANH TOÁN:</span>
-                  <span className="text-sm font-black">{totalAmount.toLocaleString('vi-VN')} ₫</span>
-                </div>
-
-                <div className="pt-1 flex justify-between text-slate-800">
-                  <span>Hình thức thanh toán:</span>
-                  <span className="font-bold">{paymentMethodText}</span>
-                </div>
-
-                <div className="flex justify-between text-slate-700">
-                  <span>Tiền khách đưa:</span>
-                  <span>{totalAmount.toLocaleString('vi-VN')} ₫</span>
-                </div>
-
-                <div className="flex justify-between text-slate-700">
-                  <span>Tiền thối lại:</span>
-                  <span className="font-bold text-slate-900">0 ₫</span>
-                </div>
-              </div>
-
-              {/* Footer Information & QR Code */}
-              <div className="pt-3 text-center space-y-2">
-                <div className="flex justify-center items-center gap-3 py-1">
-                  <div className="p-1 border border-slate-300 bg-white rounded">
-                    <QrcodeOutlined className="text-3xl text-slate-900" />
-                  </div>
-                  <div className="text-left space-y-0.5">
-                    <div className="text-[9px] font-bold text-slate-800">Tra cứu e-Invoice:</div>
-                    <div className="text-[8px] text-blue-700 font-mono underline">tracuu.bitis.com.vn</div>
-                    <div className="text-[8px] text-slate-500">Mã tra cứu: {effectiveReceipt}</div>
-                  </div>
-                </div>
-
-                <div className="text-[9px] font-mono tracking-widest font-extrabold text-slate-800 bg-slate-100 py-1 border border-slate-200">
-                  *{effectiveReceipt}*
-                </div>
-
-                <div className="text-[9px] text-slate-600 space-y-0.5 pt-1">
-                  <div>Wifi: <strong>Bitis_Free_Guest</strong> | Pass: <strong>bitis6868</strong></div>
-                  <div className="italic text-[8.5px]">Quý khách vui lòng giữ lại phiếu để đổi hàng trong 07 ngày.</div>
-                  <div className="font-bold text-[10px] text-slate-900 uppercase pt-1 font-sans">
-                    CẢM ƠN QUÝ KHÁCH & HẸN GẶP LẠI!
-                  </div>
-                </div>
-              </div>
-
-              {/* Paper Zig-Zag bottom border simulation */}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-[radial-gradient(circle,_transparent_3px,_#f1f5f9_3px)] bg-[length:8px_8px] -mb-1 print:hidden" />
-
-            </div>
-          </div>
-        )}
+        ) : activeTab === 'vat' ? a4Invoice : k80Receipt}
       </div>
 
-      {/* PRINTER SETTINGS MODAL */}
       <Modal
-        title={
-          <div className="flex items-center gap-2 text-slate-800 font-bold border-b border-slate-100 pb-2">
-            <SettingOutlined className="text-blue-600 text-lg" />
-            <span>Cấu Hình Kết Nối Máy In Nhiệt (K80 / K57)</span>
-          </div>
-        }
+        title={<div className="flex items-center gap-2 font-bold"><SettingOutlined className="text-blue-600" /> Cấu hình máy in nhiệt</div>}
         open={printerModalOpen}
         onCancel={() => setPrinterModalOpen(false)}
-        footer={[
-          <Button key="close" onClick={() => setPrinterModalOpen(false)}>
-            Đóng
-          </Button>,
-          <Button 
-            key="test" 
-            icon={<ThunderboltOutlined />} 
-            onClick={handleTestPrint} 
-            loading={isTestingPrinter}
-            className="bg-amber-500 hover:bg-amber-600 text-white font-semibold"
-          >
-            In Thử Phiếu Test
-          </Button>,
-          <Button 
-            key="save" 
-            type="primary" 
-            icon={<CheckOutlined />} 
-            onClick={() => {
-              message.success('Đã lưu cấu hình máy in!');
-              setPrinterModalOpen(false);
-            }}
-          >
-            Lưu Cấu Hình
-          </Button>
-        ]}
-        width={540}
+        width={560}
         centered
+        footer={[
+          <Button key="close" onClick={() => setPrinterModalOpen(false)}>Đóng</Button>,
+          <Button key="test" icon={<ThunderboltOutlined />} loading={isTestingPrinter} onClick={handleTestPrint}>
+            In thử
+          </Button>,
+          <Button key="save" type="primary" onClick={() => { savePrinterConfig(); setPrinterModalOpen(false); message.success('Đã lưu cấu hình máy in.'); }}>
+            Lưu cấu hình
+          </Button>,
+        ]}
       >
-        <div className="py-2 space-y-4 text-xs">
-          <div className="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg flex items-start gap-2">
-            <ApiOutlined className="text-blue-600 text-base mt-0.5" />
-            <div>
-              <div className="font-bold">Chế độ máy in nhiệt POS ESC/POS</div>
-              <div className="text-[11px] text-blue-700">
-                Hỗ trợ kết nối trực tiếp cổng mạng LAN/Wi-Fi (IP), USB, Bluetooth hoặc qua Trình điều khiển hệ thống.
-              </div>
-            </div>
+        <div className="space-y-4 text-xs">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-blue-800">
+            Máy in LAN/Wi-Fi cần mở cổng RAW TCP, thường là <strong>9100</strong>. Trình duyệt không thể tự kết nối TCP nên app sẽ gửi qua server Node nội bộ.
           </div>
 
-          <div className="space-y-3">
+          <div>
+            <label className="mb-1 block font-bold text-slate-700">Phương thức in</label>
+            <Select
+              className="w-full"
+              value={printerType}
+              onChange={setPrinterType}
+              options={[
+                { label: 'Máy in LAN / Wi-Fi qua IP', value: 'lan' },
+                { label: 'Trình điều khiển hệ thống / Browser print', value: 'driver' },
+              ]}
+            />
+          </div>
+
+          {printerType === 'lan' && (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-2">
+                <label className="mb-1 block font-bold text-slate-700">Địa chỉ IP</label>
+                <Input value={printerIp} onChange={event => setPrinterIp(event.target.value)} prefix={<WifiOutlined className="text-slate-400" />} />
+              </div>
+              <div>
+                <label className="mb-1 block font-bold text-slate-700">Port</label>
+                <Input value={printerPort} onChange={event => setPrinterPort(event.target.value)} />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-bold text-slate-700 block mb-1">Phương thức kết nối máy in:</label>
-              <Select 
-                value={printerType} 
-                onChange={(val) => setPrinterType(val)}
+              <label className="mb-1 block font-bold text-slate-700">Khổ giấy</label>
+              <Select
                 className="w-full"
+                value={paperWidth}
+                onChange={setPaperWidth}
                 options={[
-                  { label: '🌐 Mạng LAN / Wi-Fi (Cổng Ethernet IP 9100)', value: 'lan' },
-                  { label: '🔌 Cổng USB Trực tiếp (WebUSB / Direct Port)', value: 'usb' },
-                  { label: '📱 Máy in Bluetooth Di Động', value: 'bluetooth' },
-                  { label: '🖨️ Trình điều khiển System Driver (Browser Print)', value: 'driver' },
+                  { label: 'K80 - 80mm', value: 'k80' },
+                  { label: 'K57 - 57mm', value: 'k57' },
                 ]}
               />
             </div>
+            <div>
+              <label className="mb-1 block font-bold text-slate-700">Số liên</label>
+              <Select
+                className="w-full"
+                value={copyCount}
+                onChange={setCopyCount}
+                options={[
+                  { label: '1 bản', value: 1 },
+                  { label: '2 bản', value: 2 },
+                  { label: '3 bản', value: 3 },
+                ]}
+              />
+            </div>
+          </div>
 
-            {printerType === 'lan' && (
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-2">
-                  <label className="font-bold text-slate-700 block mb-1">Địa chỉ IP Máy In (LAN):</label>
-                  <Input 
-                    value={printerIp} 
-                    onChange={(e) => setPrinterIp(e.target.value)} 
-                    placeholder="192.168.1.200"
-                    prefix={<WifiOutlined className="text-slate-400" />}
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Cổng (Port):</label>
-                  <Input 
-                    value={printerPort} 
-                    onChange={(e) => setPrinterPort(e.target.value)} 
-                    placeholder="9100"
-                  />
-                </div>
-              </div>
+          <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <div>
+              <div className="font-bold text-slate-800">Tự động cắt giấy</div>
+              <div className="text-[10px] text-slate-500">Gửi lệnh ESC/POS GS V B 0 sau khi in.</div>
+            </div>
+            <Switch checked={autoCut} onChange={setAutoCut} />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-slate-600">Trạng thái</span>
+            {isConnected ? (
+              <Tag color="success" icon={<CheckCircleOutlined />}>Đã test thành công</Tag>
+            ) : (
+              <Tag>Chưa kiểm tra</Tag>
             )}
-
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Khổ giấy in nhiệt:</label>
-                <Select 
-                  value={paperWidth} 
-                  onChange={(v) => setPaperWidth(v)}
-                  className="w-full"
-                  options={[
-                    { label: '📄 Khổ K80 (80mm - Tiêu chuẩn)', value: 'k80' },
-                    { label: '📜 Khổ K57 (57mm - Nhỏ)', value: 'k57' },
-                  ]}
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Số liên in (Số bản):</label>
-                <Select 
-                  value={copyCount} 
-                  onChange={(v) => setCopyCount(v)}
-                  className="w-full"
-                  options={[
-                    { label: '1 bản (Cho khách)', value: 1 },
-                    { label: '2 bản (Khách + Cửa hàng)', value: 2 },
-                    { label: '3 bản (Khách + Cửa hàng + Kế toán)', value: 3 },
-                  ]}
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <div>
-                <div className="font-bold text-slate-800">Tự động cắt giấy khi in xong (Auto-Cut)</div>
-                <div className="text-[10px] text-slate-500">Gửi lệnh dao cắt ESC/POS GS V 66 0</div>
-              </div>
-              <Switch checked={autoCut} onChange={(checked) => setAutoCut(checked)} />
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-slate-600 pt-1">
-              <span>Trạng thái kết nối:</span>
-              {isConnected ? (
-                <Tag color="success" icon={<CheckCircleOutlined />}>
-                  Đã sẵn sàng kết nối {paperWidth.toUpperCase()}
-                </Tag>
-              ) : (
-                <Tag color="default">Chưa kết nối</Tag>
-              )}
-            </div>
           </div>
         </div>
       </Modal>
     </div>
   );
 
-  if (!isModal) {
-    return documentContent;
-  }
+  if (!isModal) return documentContent;
+  if (!open) return null;
 
   return (
     <Modal
       open={open}
       onCancel={onClose}
-      width={850}
+      width={activeTab === 'vat' ? 920 : 620}
       style={{ maxWidth: 'calc(100vw - 16px)', top: 12 }}
       centered
-      styles={{ body: { padding: '12px 16px' } }}
-      footer={
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 w-full pt-2 border-t border-slate-100 no-print">
-          <div className="text-xs text-slate-500 text-center sm:text-left flex items-center gap-2 wrap">
-            <span>Mã e-Invoice:</span>
-            <code className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded font-mono font-bold">{effectiveReceipt}</code>
-            
-            {/* Local Refresh Button - No API call */}
-            <Tooltip title={lastLocalRefresh ? `Đã làm mới lúc ${lastLocalRefresh}` : "Làm mới giao diện in tại chỗ"}>
-              <Button 
-                size="small" 
-                type="text" 
-                icon={<ReloadOutlined />} 
-                onClick={handleLocalRefresh}
-                className="text-blue-600 hover:text-blue-800 text-xs p-0 h-auto font-medium"
-              >
-                Làm mới giao diện
-              </Button>
-            </Tooltip>
-          </div>
-
-          <Space wrap className="w-full sm:w-auto justify-center sm:justify-end">
-            {/* Printer Connection Config Button */}
-            <Button 
-              icon={<SettingOutlined />} 
-              onClick={() => setPrinterModalOpen(true)}
-              className="text-slate-700 font-medium"
-            >
-              <Badge status={isConnected ? 'success' : 'default'} text="Máy in K80" />
-            </Button>
-
-            <Button onClick={onClose}>
-              Đóng
-            </Button>
-            
-            <Button 
-              icon={<DownloadOutlined />} 
-              onClick={handleDownloadPDF}
-            >
-              Tải PDF
-            </Button>
-            
-            <Button 
-              type="primary" 
-              icon={<PrinterOutlined />} 
-              className="bg-blue-600 hover:bg-blue-700 font-semibold"
-              onClick={handlePrint}
-            >
-              In Phiếu Ngay
-            </Button>
-          </Space>
-        </div>
-      }
+      styles={{ body: { padding: 12 } }}
       title={
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3 pr-8 no-print">
-          <div className="flex items-center gap-2">
-            <PrinterOutlined className="text-blue-600 text-lg" />
-            <span className="text-sm sm:text-base font-bold text-slate-800">In Hóa Đơn ({effectiveReceipt})</span>
+        <div className="no-print flex flex-col gap-2 border-b border-slate-100 pb-3 pr-8 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 font-bold text-slate-800">
+            <PrinterOutlined className="text-blue-600" />
+            <span>In chứng từ {receipt.number}</span>
           </div>
           <Tabs
             activeKey={activeTab}
-            onChange={(k) => setActiveTab(k as any)}
-            className="custom-tabs-header -mb-3"
+            onChange={key => setActiveTab(key as 'pos' | 'vat')}
             size="small"
+            className="-mb-3"
             items={[
-              { key: 'pos', label: 'Phiếu thu POS (K80)' },
-              { key: 'vat', label: 'Hóa đơn VAT (A4)' },
+              { key: 'pos', label: 'K80' },
+              { key: 'vat', label: 'A4' },
             ]}
           />
+        </div>
+      }
+      footer={
+        <div className="no-print flex w-full flex-col gap-3 border-t border-slate-100 pt-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <span>Mã chứng từ:</span>
+            <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono">{effectiveReceipt}</code>
+            <Tooltip title={lastRefreshAt ? `Làm mới lúc ${lastRefreshAt}` : 'Làm mới giao diện'}>
+              <Button size="small" type="text" icon={<ReloadOutlined />} onClick={handleLocalRefresh}>Refresh</Button>
+            </Tooltip>
+          </div>
+
+          <Space wrap className="justify-center sm:justify-end">
+            <Button icon={<SettingOutlined />} onClick={() => setPrinterModalOpen(true)}>
+              <Badge status={isConnected ? 'success' : 'default'} text={printerType === 'lan' ? `${printerIp}:${printerPort}` : 'Browser print'} />
+            </Button>
+            <Button onClick={onClose}>Đóng</Button>
+            <Button icon={<DownloadOutlined />} onClick={handleDownloadPDF}>PDF</Button>
+            <Button type="primary" icon={<PrinterOutlined />} loading={isPrinting} onClick={handlePrint}>
+              In ngay
+            </Button>
+          </Space>
         </div>
       }
     >

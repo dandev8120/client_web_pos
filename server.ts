@@ -1,360 +1,595 @@
+import dotenv from "dotenv";
 import express from "express";
+import crypto from "crypto";
+import fs from "fs";
+import http from "http";
+import https from "https";
+import net from "net";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import cookieParser from "cookie-parser";
-import seedVatJson from "./src/seed/seedVat.json";
-import seedOrderDetailsJson from "./src/seed/seedOrderDetails.json";
-import seedOrdersJson from "./src/seed/seedOrders.json";
-import { VatInvoiceMapper } from "./src/dtos/VatDto";
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+const appEnv = process.env.NODE_ENV || "development";
+const envRoot = process.cwd();
+dotenv.config({ path: path.join(envRoot, ".env.local") });
+dotenv.config({ path: path.join(envRoot, `.env.${appEnv}`), override: true });
 
-  app.use(express.json());
-  app.use(cookieParser());
+const jsonBodyParser = express.json({ limit: "10mb" });
+const formBodyParser = express.urlencoded({ extended: true, limit: "10mb" });
+const sessionCookieName = process.env.APP_SESSION_COOKIE_NAME || "POS_PORTAL_SESSION_ID";
+const sessionMaxAgeSeconds = Number(process.env.APP_SESSION_MAX_AGE_SECONDS || 12 * 60 * 60);
+const appSessions = new Map<string, AppSession>();
+const allowSelfSignedLocalApi =
+  String(process.env.POS_CENTER_API_ALLOW_SELF_SIGNED || "").toLowerCase() === "true";
 
-  // Proxy for /api/receipts-center to bypass browser CORS / ngrok restrictions
-  app.use("/api/receipts-center", async (req, res) => {
-    const backendBaseUrl = process.env.VITE_POS_CENTER_API_URL || process.env.POS_CENTER_API_URL || 'https://46f2-115-79-139-93.ngrok-free.app';
-    const cleanBaseUrl = backendBaseUrl.replace(/\/+$/, '');
-    const targetUrl = `${cleanBaseUrl}/api/receipts-center${req.url}`;
+interface AppSession {
+  id: string;
+  accessToken?: string;
+  idToken?: string;
+  user: Record<string, unknown>;
+  createdAt: number;
+  lastSeenAt: number;
+  expiresAt: number;
+}
 
-    // Read timeout from environment variable (VITE_POS_CENTER_TIMEOUT, POS_CENTER_TIMEOUT, or TIMEOUT)
-    const rawTimeout = Number(
-      process.env.VITE_POS_CENTER_TIMEOUT || 
-      process.env.POS_CENTER_TIMEOUT || 
-      process.env.TIMEOUT || 
-      '60000'
-    );
-    // If value is under 1000, treat it as seconds and convert to ms, default to 60000ms if invalid/0
-    const timeoutMs = (rawTimeout > 0 && rawTimeout < 1000) ? rawTimeout * 1000 : (rawTimeout || 60000);
+function parseCookies(req: express.Request) {
+  const rawCookie = req.headers.cookie;
+  if (!rawCookie) return {};
 
-    const controller = new AbortController();
-    let isTimedOut = false;
-    let isClientClosed = false;
+  return rawCookie.split(";").reduce<Record<string, string>>((cookies, part) => {
+    const separatorIndex = part.indexOf("=");
+    if (separatorIndex === -1) return cookies;
 
-    // Track client socket aborts when client closes connection before server sends response
-    res.on('close', () => {
-      if (!res.writableEnded) {
-        isClientClosed = true;
-        controller.abort();
-      }
+    const key = part.slice(0, separatorIndex).trim();
+    const value = part.slice(separatorIndex + 1).trim();
+    if (key) cookies[key] = decodeURIComponent(value);
+    return cookies;
+  }, {});
+}
+
+function serializeCookie(name: string, value: string, maxAgeSeconds: number, secure: boolean) {
+  const parts = [
+    `${name}=${encodeURIComponent(value)}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    `Max-Age=${maxAgeSeconds}`,
+  ];
+
+  if (secure) parts.push("Secure");
+  return parts.join("; ");
+}
+
+function clearSessionCookie(name: string, secure: boolean) {
+  return serializeCookie(name, "", 0, secure);
+}
+
+function sweepExpiredSessions() {
+  const now = Date.now();
+  appSessions.forEach((session, sessionId) => {
+    if (session.expiresAt <= now) {
+      appSessions.delete(sessionId);
+    }
+  });
+}
+
+function getAppSession(req: express.Request) {
+  const sessionId = parseCookies(req)[sessionCookieName];
+  if (!sessionId) return null;
+
+  const session = appSessions.get(sessionId);
+  if (!session) return null;
+
+  if (session.expiresAt <= Date.now()) {
+    appSessions.delete(sessionId);
+    return null;
+  }
+
+  session.lastSeenAt = Date.now();
+  return session;
+}
+
+function toSessionResponse(session: AppSession) {
+  return {
+    id: session.id,
+    user: session.user,
+    createdAt: new Date(session.createdAt).toISOString(),
+    lastSeenAt: new Date(session.lastSeenAt).toISOString(),
+    expiresAt: new Date(session.expiresAt).toISOString(),
+  };
+}
+
+function createTraceId() {
+  return crypto.randomUUID();
+}
+
+function getRequestIp(req: express.Request) {
+  const forwardedFor = String(req.headers["x-forwarded-for"] || "")
+    .split(",")
+    .map(value => value.trim())
+    .filter(Boolean)[0];
+
+  return forwardedFor || req.socket.remoteAddress || "";
+}
+
+function setCorsHeaders(res: express.Response) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization");
+}
+
+function hasRequestBody(method: string) {
+  return !["GET", "HEAD"].includes(method.toUpperCase());
+}
+
+function buildRequestBody(req: express.Request): string | undefined {
+  if (!hasRequestBody(req.method)) return undefined;
+
+  const contentType = String(req.headers["content-type"] || "");
+  const hasParsedBody = req.body !== undefined && req.body !== null;
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    return hasParsedBody ? new URLSearchParams(req.body as Record<string, string>).toString() : undefined;
+  }
+
+  if (hasParsedBody) {
+    return JSON.stringify(req.body);
+  }
+
+  return undefined;
+}
+
+function stripVietnamese(input: string) {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+}
+
+function buildEscPosPayload(content: string, autoCut: boolean, asciiOnly = true) {
+  const normalizedContent = asciiOnly ? stripVietnamese(content) : content;
+  const init = "\x1b@";
+  const codePage = "\x1bt\x00";
+  const feed = "\n\n\n";
+  const cut = autoCut ? "\x1dV\x42\x00" : "";
+  return Buffer.from(`${init}${codePage}${normalizedContent}${feed}${cut}`, "utf8");
+}
+
+function sendToNetworkPrinter(host: string, port: number, payload: Buffer, timeoutMs = 5000) {
+  return new Promise<{ bytesWritten: number }>((resolve, reject) => {
+    const socket = new net.Socket();
+    let settled = false;
+
+    const finish = (err?: Error) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      if (err) reject(err);
+      else resolve({ bytesWritten: payload.byteLength });
+    };
+
+    socket.setTimeout(timeoutMs);
+    socket.once("timeout", () => finish(new Error(`Printer connection timed out after ${timeoutMs}ms`)));
+    socket.once("error", finish);
+    socket.connect(port, host, () => {
+      socket.write(payload, err => {
+        if (err) {
+          finish(err);
+          return;
+        }
+        socket.end();
+      });
     });
+    socket.once("close", hadError => {
+      if (!hadError) finish();
+    });
+  });
+}
 
-    const timeoutId = setTimeout(() => {
-      isTimedOut = true;
-      controller.abort();
-    }, timeoutMs);
+function getPrinterRequest(req: express.Request) {
+  const host = String(req.body?.host || req.body?.printerIp || "").trim();
+  const port = Number(req.body?.port || req.body?.printerPort || 9100);
+  const autoCut = req.body?.autoCut !== false;
+  const copies = Math.min(Math.max(Number(req.body?.copies || req.body?.copyCount || 1), 1), 3);
+  const paperWidth = String(req.body?.paperWidth || "k80").toUpperCase();
+  const receiptNumber = String(req.body?.receiptNumber || "TEST").trim();
+  const content = String(req.body?.content || [
+    "BITIS POS CENTER",
+    `TEST PRINT ${paperWidth}`,
+    `RECEIPT: ${receiptNumber}`,
+    `TIME: ${new Date().toISOString()}`,
+    "NETWORK PRINTER OK",
+  ].join("\n"));
+
+  if (!host) {
+    throw new Error("Missing printer host.");
+  }
+  if (!Number.isFinite(port) || port <= 0 || port > 65535) {
+    throw new Error("Invalid printer port.");
+  }
+
+  return { host, port, autoCut, copies, content };
+}
+
+class ProxyService {
+  private shouldAllowSelfSigned(targetUrl: string) {
+    if (!allowSelfSignedLocalApi) return false;
+
+    try {
+      const url = new URL(targetUrl);
+      return url.protocol === "https:" && ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+    } catch {
+      return false;
+    }
+  }
+
+  private request(
+    targetUrl: string,
+    method: string,
+    headers: Record<string, string>,
+    body: string | undefined
+  ): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: Buffer }> {
+    return new Promise((resolve, reject) => {
+      const url = new URL(targetUrl);
+      const isHttps = url.protocol === "https:";
+      const bodyBuffer = body ? Buffer.from(body) : undefined;
+      const requestHeaders = bodyBuffer
+        ? { ...headers, "Content-Length": String(bodyBuffer.byteLength) }
+        : headers;
+      const requestOptions: http.RequestOptions & https.RequestOptions = {
+        method,
+        headers: requestHeaders,
+        rejectUnauthorized: !this.shouldAllowSelfSigned(targetUrl),
+      };
+
+      const client = isHttps ? https : http;
+      const proxyReq = client.request(url, requestOptions, response => {
+        const chunks: Buffer[] = [];
+
+        response.on("data", chunk => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+        response.on("end", () => {
+          resolve({
+            status: response.statusCode || 502,
+            headers: response.headers,
+            body: Buffer.concat(chunks),
+          });
+        });
+      });
+
+      proxyReq.on("error", reject);
+      if (bodyBuffer) proxyReq.write(bodyBuffer);
+      proxyReq.end();
+    });
+  }
+
+  public async forward(
+    req: express.Request,
+    res: express.Response,
+    baseUrl: string,
+    targetPath: string,
+    extraHeaders: Record<string, string> = {}
+  ) {
+    const cleanBaseUrl = baseUrl.replace(/\/+$/, "");
+    const targetUrl = `${cleanBaseUrl}${targetPath}`;
+    const contentType = String(req.headers["content-type"] || "application/json");
 
     try {
       const headers: Record<string, string> = {
-        'Content-Type': req.headers['content-type'] || 'application/json',
-        'Accept': req.headers['accept'] || 'application/json',
-        'X-Client-App': 'POS-CENTER-BITIS',
-        'ngrok-skip-browser-warning': 'true',
+        Accept: String(req.headers.accept || "application/json"),
+        ...extraHeaders,
       };
 
-      const options: RequestInit = {
-        method: req.method,
-        headers,
-        signal: controller.signal,
-      };
-
-      if (['POST', 'PUT', 'PATCH'].includes(req.method.toUpperCase()) && req.body && Object.keys(req.body).length > 0) {
-        options.body = JSON.stringify(req.body);
+      if (hasRequestBody(req.method)) {
+        headers["Content-Type"] = contentType.includes("application/x-www-form-urlencoded")
+          ? "application/x-www-form-urlencoded"
+          : "application/json";
       }
 
-      const response = await fetch(targetUrl, options);
-      clearTimeout(timeoutId);
+      const authHeader = req.headers.authorization;
+      const appSession = getAppSession(req);
+      const sessionAuthHeader = appSession?.accessToken ? `Bearer ${appSession.accessToken}` : "";
+      if (authHeader || sessionAuthHeader) headers.Authorization = String(authHeader || sessionAuthHeader);
 
-      if (res.writableEnded) return;
+      const response = await this.request(targetUrl, req.method, headers, buildRequestBody(req));
 
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        const data = await response.json();
-        return res.status(response.status).json(data);
-      } else {
-        const text = await response.text();
-        return res.status(response.status).send(text);
-      }
+      Object.entries(response.headers).forEach(([key, value]) => {
+        const lowerKey = key.toLowerCase();
+        if (value !== undefined && !["content-encoding", "content-length", "transfer-encoding"].includes(lowerKey)) {
+          res.setHeader(key, value);
+        }
+      });
+
+      setCorsHeaders(res);
+      return res.status(response.status).send(response.body);
     } catch (err: any) {
-      clearTimeout(timeoutId);
-      if (res.writableEnded) return;
-
-      if (isClientClosed) {
-        console.info(`[Proxy] Client closed connection for ${req.method} ${targetUrl}`);
-        return;
-      }
-
-      if (isTimedOut || err.name === 'AbortError' || err.message?.includes('aborted')) {
-        console.warn(`[Proxy] Request timed out after ${timeoutMs}ms for ${req.method} ${targetUrl}`);
-        return res.status(504).json({
-          success: false,
-          isSuccess: false,
-          code: 504,
-          message: `Quá thời gian kết nối tới máy chủ POS Center (${Math.round(timeoutMs / 1000)}s)`
-        });
-      }
-
-      console.error(`[Proxy] Error forwarding request to ngrok backend (${targetUrl}):`, err.message || err);
+      console.error(`[Proxy] ${req.method} ${targetUrl}`, err.message || err);
       return res.status(502).json({
         success: false,
-        isSuccess: false,
         code: 502,
-        message: `Không thể kết nối đến máy chủ POS Center: ${err.message || 'Lỗi mạng'}`
+        message: err.message || "Network request failed",
       });
     }
-  });
+  }
+}
 
-  // API Routes
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
-  });
+async function startServer() {
+  const app = express();
+  const proxyService = new ProxyService();
+  const port = Number(process.env.PORT || "44374");
+  const identityServerBaseUrl = (
+    process.env.VITE_OIDC_AUTHORITY ||
+    process.env.IDENTITY_SERVER_BASE_URL ||
+    "https://identityserver.bitisgroup.vn"
+  ).replace(/\/+$/, "");
+  const posCenterBaseUrl = process.env.VITE_POS_CENTER_API_URL || process.env.POS_CENTER_API_URL || "";
+  const httpsEnabled = String(process.env.HTTPS_ENABLED || "").toLowerCase() === "true";
+  const hmrEnabled = process.env.VITE_DEV_HMR_ENABLED === "true";
+  let server: http.Server | https.Server;
+  let protocol = "http";
 
-  // Mock OAuth2 URL - in a real app, this would construct a real provider URL
-  app.get("/api/auth/url", (req, res) => {
-    const authUrl = `${process.env.APP_URL || 'http://localhost:3000'}/auth/callback?code=mock_code`;
-    res.json({ url: authUrl });
-  });
+  if (httpsEnabled) {
+    const pfxPath = path.resolve(process.cwd(), process.env.HTTPS_PFX_PATH || ".certs/localhost.pfx");
+    if (!fs.existsSync(pfxPath)) {
+      throw new Error(`HTTPS certificate not found at ${pfxPath}`);
+    }
 
-  // In-memory VAT Invoice database seeded from seedVat.json
-  const issuedVatInvoices = new Map<string, any>();
-
-  if (Array.isArray(seedVatJson.sampleInvoices)) {
-    seedVatJson.sampleInvoices.forEach((inv: any) => {
-      const key = `${inv.orderId}_${inv.storeId}_${inv.registerId}`;
-      issuedVatInvoices.set(key, {
-        formData: inv.formData,
-        issuedAt: inv.issuedAt,
-        amount: inv.amount
-      });
-    });
+    server = https.createServer(
+      {
+        pfx: fs.readFileSync(pfxPath),
+        passphrase: process.env.HTTPS_PFX_PASSPHRASE || "",
+      },
+      app
+    );
+    protocol = "https";
+  } else {
+    server = http.createServer(app);
   }
 
-  // VAT Form configurations initialized & mapped via VatInvoiceMapper from seedVat.json
-  let vatFormConfig = VatInvoiceMapper.toFormConfigDto(seedVatJson.vatFormConfig);
+  app.use(jsonBodyParser);
+  app.use(formBodyParser);
 
-  // API to get VAT Form Config
-  app.get("/api/vat/config", (req, res) => {
-    res.json(vatFormConfig);
+  app.options("*", (_req, res) => {
+    setCorsHeaders(res);
+    res.sendStatus(204);
   });
 
-  // API to update VAT Form Config
-  app.post("/api/vat/config", (req, res) => {
-    const newConfig = req.body;
-    if (newConfig && (newConfig.individual || newConfig.enterprise)) {
-      vatFormConfig = VatInvoiceMapper.toFormConfigDto({
-        ...vatFormConfig,
-        ...newConfig
-      });
-      return res.json({ success: true, config: vatFormConfig });
-    }
-    return res.status(400).json({ success: false, error: "Dữ liệu cấu hình không hợp lệ." });
-  });
-
-  // API to verify URL parameters and return form configuration or issued state
-  app.get("/api/vat/verify", (req, res) => {
-    const { oid, sid, rid, o, sig, a, ct } = req.query;
-
-    if (!oid || !sid || !rid || !sig) {
-      return res.status(400).json({
-        valid: false,
-        error: "Tham số không đầy đủ hoặc chữ ký bảo mật (sig) bị thiếu. Vui lòng kiểm tra lại liên kết."
-      });
-    }
-
-    const invoiceKey = `${oid}_${sid}_${rid}`;
-
-    // Case 2: Invoice is already issued
-    if (issuedVatInvoices.has(invoiceKey)) {
-      const data = issuedVatInvoices.get(invoiceKey);
-      const responseDto = VatInvoiceMapper.toIssuedResponseDto(
-        String(oid),
-        String(sid),
-        String(rid),
-        String(sig),
-        String(a || '0'),
-        data
-      );
-      return res.json(responseDto);
-    }
-
-    // Case 1: Invoice has not been issued yet - return Form JSONB config
-    return res.json({
-      valid: true,
-      status: "pending",
-      amount: a || "0",
-      orderId: oid,
-      formConfig: vatFormConfig
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      environment: appEnv,
     });
   });
 
-  // API to submit VAT invoice information
-  app.post("/api/vat/submit", (req, res) => {
-    const { oid, sid, rid, o, sig, a, ct, formData } = req.body;
-
-    if (!oid || !sid || !rid || !sig || !formData) {
-      return res.status(400).json({
-        success: false,
-        error: "Thiếu thông tin xác thực hoặc dữ liệu biểu mẫu."
-      });
-    }
-
-    const invoiceKey = `${oid}_${sid}_${rid}`;
-    
-    // Store in our in-memory DB
-    issuedVatInvoices.set(invoiceKey, {
-      formData,
-      issuedAt: new Date().toISOString(),
-      amount: a,
-      ct
-    });
-
-    const responseDto = VatInvoiceMapper.toIssuedResponseDto(
-      String(oid),
-      String(sid),
-      String(rid),
-      String(sig),
-      String(a || '0'),
-      { formData, issuedAt: new Date().toISOString() }
-    );
+  app.get("/api/audit/client-context", (req, res) => {
+    const forwardedFor = String(req.headers["x-forwarded-for"] || "");
+    const session = getAppSession(req);
 
     return res.json({
       success: true,
-      downloadUrl: responseDto.downloadUrl
+      context: {
+        traceId: createTraceId(),
+        sessionId: session?.id,
+        ipAddress: getRequestIp(req),
+        forwardedFor: forwardedFor || undefined,
+        userAgent: req.headers["user-agent"] || "",
+        acceptLanguage: req.headers["accept-language"] || "",
+        host: req.headers.host || "",
+        protocol,
+        capturedAt: new Date().toISOString(),
+      },
     });
   });
 
-  // API to download issued invoice as PDF
-  app.get("/api/vat/download", (req, res) => {
-    const { oid, sid, rid, a } = req.query;
+  app.post("/api/session", (req, res) => {
+    const authorization = String(req.headers.authorization || "");
+    const bearerToken = authorization.startsWith("Bearer ") ? authorization.slice("Bearer ".length) : "";
 
-    if (!oid || !sid || !rid) {
-      return res.status(400).send("Yêu cầu tải xuống không hợp lệ.");
+    if (!bearerToken) {
+      return res.status(401).json({
+        success: false,
+        message: "Missing OIDC access token.",
+      });
     }
 
-    const invoiceKey = `${oid}_${sid}_${rid}`;
-    const invoiceData = issuedVatInvoices.get(invoiceKey);
+    sweepExpiredSessions();
 
-    const companyName = invoiceData ? invoiceData.formData.companyName : "Khách hàng Vãng lai";
-    const taxCode = invoiceData ? invoiceData.formData.taxCode : "Chưa đăng ký";
-    const email = invoiceData ? invoiceData.formData.email : "N/A";
-    const amount = (a as string) || (invoiceData ? invoiceData.amount : "5000000");
-
-    // Clear accents/diacritics for basic PDF text generation to guarantee no raw unicode crashes
-    const cleanText = (str: string) => {
-      return str
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/đ/g, "d")
-        .replace(/Đ/g, "D")
-        .replace(/[^\x20-\x7E]/g, "");
+    const now = Date.now();
+    const sessionId = crypto.randomUUID();
+    const session: AppSession = {
+      id: sessionId,
+      accessToken: bearerToken,
+      idToken: typeof req.body?.idToken === "string" ? req.body.idToken : undefined,
+      user: typeof req.body?.user === "object" && req.body.user ? req.body.user : {},
+      createdAt: now,
+      lastSeenAt: now,
+      expiresAt: now + sessionMaxAgeSeconds * 1000,
     };
 
-    const cleanCompany = cleanText(companyName);
-    const cleanEmail = cleanText(email);
+    appSessions.set(sessionId, session);
+    res.setHeader("Set-Cookie", serializeCookie(sessionCookieName, sessionId, sessionMaxAgeSeconds, httpsEnabled));
 
-    const formattedAmount = Number(amount).toLocaleString('vi-VN');
-
-    // Generate a minimal but valid PDF 1.4 layout
-    const pdfBody = `%PDF-1.4
-1 0 obj
-<< /Type /Catalog /Pages 2 0 R >>
-endobj
-2 0 obj
-<< /Type /Pages /Kids [3 0 R] /Count 1 >>
-endobj
-3 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources 4 0 R /Contents 5 0 R >>
-endobj
-4 0 obj
-<< /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> >> >>
-endobj
-5 0 obj
-<< /Length 1000 >>
-stream
-BT
-/F1 18 Tf
-70 750 Td
-(HOA DON GTGT DIEN TU - VAT INVOICE) Tj
-/F1 12 Tf
-0 -40 Td
-(Ma don hang (Order ID): ${oid}) Tj
-0 -25 Td
-(So tien (Amount): ${formattedAmount} VND) Tj
-0 -25 Td
-(Don vi mua hang (Company): ${cleanCompany}) Tj
-0 -25 Td
-(Ma so thue (Tax Code): ${taxCode}) Tj
-0 -25 Td
-(Email nhan (Email): ${cleanEmail}) Tj
-0 -40 Td
-(Trang thai: Da phat hanh hoa don dien tu hop le.) Tj
-0 -20 Td
-(Hoa don nay duoc phat hanh tu dong qua Cong Thong Tin VAT.) Tj
-0 -30 Td
-(Cam on quy khach da tin tuong va mua hang!) Tj
-ET
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f 
-0000000009 00000 n 
-0000000058 00000 n 
-0000000115 00000 n 
-0000000222 00000 n 
-0000000305 00000 n 
-trailer
-<< /Size 6 /Root 1 0 R >>
-startxref
-450
-%%EOF`;
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Hoa_Don_VAT_${oid}.pdf"`);
-    res.send(Buffer.from(pdfBody, 'utf-8'));
-  });
-
-  // OAuth2 Callback Handler
-  app.get("/auth/callback", (req, res) => {
-    // In a real app, you'd exchange the code for tokens here
-    res.send(`
-      <html>
-        <body>
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', user: { name: 'Admin User', role: 'admin' } }, '*');
-              window.close();
-            } else {
-              window.location.href = '/';
-            }
-          </script>
-          <p>Authentication successful. This window should close automatically.</p>
-        </body>
-      </html>
-    `);
-  });
-
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
+    return res.json({
+      success: true,
+      session: toSessionResponse(session),
     });
-    app.use(vite.middlewares);
-  } else {
-    // Production static serving
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+  });
+
+  app.get("/api/session", (req, res) => {
+    const session = getAppSession(req);
+
+    if (!session) {
+      res.setHeader("Set-Cookie", clearSessionCookie(sessionCookieName, httpsEnabled));
+      return res.status(401).json({
+        success: false,
+        message: "Session expired or not found.",
+      });
+    }
+
+    session.expiresAt = Date.now() + sessionMaxAgeSeconds * 1000;
+    res.setHeader("Set-Cookie", serializeCookie(sessionCookieName, session.id, sessionMaxAgeSeconds, httpsEnabled));
+
+    return res.json({
+      success: true,
+      session: toSessionResponse(session),
+    });
+  });
+
+  app.delete("/api/session", (req, res) => {
+    const sessionId = parseCookies(req)[sessionCookieName];
+    if (sessionId) {
+      appSessions.delete(sessionId);
+    }
+
+    res.setHeader("Set-Cookie", clearSessionCookie(sessionCookieName, httpsEnabled));
+    return res.json({ success: true });
+  });
+
+  app.post("/api/printer/test", async (req, res) => {
+    try {
+      const printer = getPrinterRequest(req);
+      const payload = buildEscPosPayload(printer.content, printer.autoCut, true);
+      const result = await sendToNetworkPrinter(printer.host, printer.port, payload);
+      return res.json({
+        success: true,
+        message: "Test print sent to network printer.",
+        printer: { host: printer.host, port: printer.port },
+        bytesWritten: result.bytesWritten,
+      });
+    } catch (err: any) {
+      return res.status(502).json({
+        success: false,
+        message: err.message || "Printer test failed.",
+      });
+    }
+  });
+
+  app.post("/api/printer/print", async (req, res) => {
+    try {
+      const printer = getPrinterRequest(req);
+      let bytesWritten = 0;
+
+      for (let index = 0; index < printer.copies; index += 1) {
+        const copyHeader = printer.copies > 1 ? `COPY ${index + 1}/${printer.copies}\n` : "";
+        const payload = buildEscPosPayload(`${copyHeader}${printer.content}`, printer.autoCut, true);
+        const result = await sendToNetworkPrinter(printer.host, printer.port, payload);
+        bytesWritten += result.bytesWritten;
+      }
+
+      return res.json({
+        success: true,
+        message: "Print job sent to network printer.",
+        printer: { host: printer.host, port: printer.port },
+        copies: printer.copies,
+        bytesWritten,
+      });
+    } catch (err: any) {
+      return res.status(502).json({
+        success: false,
+        message: err.message || "Print job failed.",
+      });
+    }
+  });
+
+  app.use("/.well-known", (req, res) => {
+    proxyService.forward(req, res, identityServerBaseUrl, `/.well-known${req.url}`, {
+      Host: new URL(identityServerBaseUrl).host,
+    });
+  });
+
+  app.use("/oidc-proxy", (req, res) => {
+    proxyService.forward(req, res, identityServerBaseUrl, req.url, {
+      Host: new URL(identityServerBaseUrl).host,
+    });
+  });
+
+  if (posCenterBaseUrl) {
+    app.use("/api/receipts-center", (req, res) => {
+      proxyService.forward(req, res, posCenterBaseUrl, `/api/receipts-center${req.url}`, {
+        "X-Client-App": "POS-CENTER-BITIS",
+        "ngrok-skip-browser-warning": "true",
+      });
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  if (appEnv !== "production") {
+    if (!hmrEnabled) {
+      app.get("/@vite/client", (_req, res) => {
+        res.type("application/javascript").send(`
+const noop = () => {};
+const sheets = new Map();
+export class ErrorOverlay extends HTMLElement {}
+export function updateStyle(id, content) {
+  let style = sheets.get(id) || document.querySelector(\`style[data-vite-dev-id="\${id}"]\`);
+  if (!style) {
+    style = document.createElement("style");
+    style.setAttribute("type", "text/css");
+    style.setAttribute("data-vite-dev-id", id);
+    document.head.appendChild(style);
+    sheets.set(id, style);
+  }
+  style.textContent = content;
+}
+export function removeStyle(id) {
+  const style = sheets.get(id) || document.querySelector(\`style[data-vite-dev-id="\${id}"]\`);
+  if (style) style.remove();
+  sheets.delete(id);
+}
+export function injectQuery(url) { return url; }
+export function createHotContext() {
+  return {
+    data: {},
+    accept: noop,
+    acceptExports: noop,
+    dispose: noop,
+    prune: noop,
+    decline: noop,
+    invalidate: noop,
+    on: noop,
+    off: noop,
+    send: noop
+  };
+}
+`);
+      });
+    }
+
+    const vite = await createViteServer({
+      mode: appEnv,
+      envDir: envRoot,
+      server: {
+        middlewareMode: true,
+        hmr: hmrEnabled ? { server } : false,
+      },
+      appType: "custom",
+    });
+    app.use(vite.middlewares);
+    app.use("*", async (req, res, next) => {
+      try {
+        const indexPath = path.resolve(process.cwd(), "index.html");
+        let html = fs.readFileSync(indexPath, "utf-8");
+        html = await vite.transformIndexHtml(req.originalUrl, html);
+
+        if (!hmrEnabled) {
+          html = html.replace(/<script[^>]+src="\/@vite\/client"[^>]*><\/script>\s*/g, "");
+        }
+
+        res.status(200).set({ "Content-Type": "text/html" }).end(html);
+      } catch (err) {
+        vite.ssrFixStacktrace(err as Error);
+        next(err);
+      }
+    });
+  } else {
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (_req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
+
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on ${protocol}://localhost:${port} (${appEnv})`);
   });
 }
 

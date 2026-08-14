@@ -3,10 +3,9 @@ import { OrderRequestDto, OrderResponseDto, OrderMapper, OrderSearchPayloadReque
 import { DataType } from '../components/orders/orderTypes';
 import { OrderMapper as OrderHelperMapper, cleanSiteCode } from '../components/orders/orderHelpers';
 import { cleanPayload } from '../utils/cleanPayload';
-import seedOrdersJson from '../seed/seedOrders.json';
 import seedOrderDetailsJson from '../seed/seedOrderDetails.json';
 
-export const API_BASE_URL = API_CONFIG.posHost || 'https://46f2-115-79-139-93.ngrok-free.app';
+export const API_BASE_URL = API_CONFIG.posHost;
 
 export interface ReceiptSearchResponse {
   items: DataType[];
@@ -89,8 +88,45 @@ export class OrderService {
 
   private pendingDetailRequests = new Map<string, Promise<DataType>>();
 
+  private isReceiptDetailShape(raw: any): boolean {
+    return Boolean(
+      raw &&
+      typeof raw === 'object' &&
+      !Array.isArray(raw) &&
+      (raw.receiptInfo || raw.sellerInfo || raw.invoiceInfo || raw.lineItems || raw.receiptTotals || raw.payments)
+    );
+  }
+
+  private matchesReceipt(raw: any, receipt: string): boolean {
+    if (!raw || !receipt) return false;
+
+    const receiptCandidates = [
+      raw.receiptInfo?.receiptNumber,
+      raw.receiptInfo?.uuid,
+      raw.receiptNumber,
+      raw.uuid,
+      raw.id,
+    ]
+      .filter(Boolean)
+      .map((value: any) => String(value).trim());
+
+    return receiptCandidates.some(value => value === receipt || value.endsWith(`-${receipt}`));
+  }
+
+  private extractReceiptDetailPayload(json: any, receipt: string): any | null {
+    if (!json) return null;
+
+    const payload = json.data !== undefined && json.data !== null ? json.data : json;
+    const candidates = Array.isArray(payload) ? payload : [payload];
+    const detailCandidates = candidates.filter(candidate => this.isReceiptDetailShape(candidate));
+
+    if (detailCandidates.length === 0) return null;
+
+    return detailCandidates.find(candidate => this.matchesReceipt(candidate, receipt)) || detailCandidates[0];
+  }
+
   /**
-   * Flow 2: GET /api/receipts-center/detail/{site}/{receipt}?forceRefresh={forceRefresh}
+   * Flow 2: GET /api/receipts-center/detail/{soCTu}/{maSite}?forceRefresh={forceRefresh}
    */
   public async getReceiptDetail(site: string, receipt: string, forceRefresh: boolean = false): Promise<DataType> {
     const safeDecode = (val: string): string => {
@@ -117,7 +153,7 @@ export class OrderService {
       const cleanReceipt = encodeURIComponent(normalizedReceipt);
       const query = `forceRefresh=${Boolean(forceRefresh)}`;
 
-      const primaryUrl = `/api/receipts-center/detail?site=${cleanSite}&receipt=${cleanReceipt}&${query}`;
+      const primaryUrl = `/api/receipts-center/detail/${cleanReceipt}/${cleanSite}?${query}`;
 
       let json: any = null;
       let httpError: string | null = null;
@@ -141,14 +177,16 @@ export class OrderService {
         httpError = err.message || 'Lỗi kết nối';
       }
 
-      // Check if primary response returned valid receipt detail data
-      if (json && typeof json === 'object') {
-        const rawData = json.data !== undefined && json.data !== null ? json.data : json;
-        // Using OrderHelperMapper to map the raw response to the expected DataType
-        return OrderHelperMapper.fromBackendJsonb(rawData, `detail-${cleanReceipt}`);
+      if (json && (json.success === false || json.isSuccess === false)) {
+        httpError = json.message || json.error || json.code || httpError || 'API detail returned unsuccessful response';
       }
 
-      // FALLBACK 1: Search in seedOrderDetailsJson.data
+      const rawDetail = this.extractReceiptDetailPayload(json, normalizedReceipt);
+      if (rawDetail) {
+        return OrderHelperMapper.fromBackendJsonb(rawDetail, `detail-${cleanReceipt}`);
+      }
+
+      // Development/reference fallback keeps the same nested schema as /api/receipts-center/detail.
       const rawSeedDetails: any[] = Array.isArray(seedOrderDetailsJson?.data) ? seedOrderDetailsJson.data : [];
       const seedMatch = rawSeedDetails.find((item: any) => {
         const rNo = item.receiptInfo?.receiptNumber || item.receiptNumber;
@@ -160,31 +198,6 @@ export class OrderService {
         return OrderHelperMapper.fromBackendJsonb(seedMatch, `detail-${cleanReceipt}`);
       }
 
-      // FALLBACK 2: Query summary-search API via searchReceipts
-      try {
-        const searchRes = await this.searchReceipts({ soCTus: [normalizedReceipt], pageIndex: 0, pageSize: 10 });
-        if (searchRes.items && searchRes.items.length > 0) {
-          const matchedItem = searchRes.items.find(i => i.storeId === normalizedSite) || searchRes.items[0];
-          if (matchedItem) {
-            return matchedItem;
-          }
-        }
-      } catch (e) {
-        // Summary search fallback failed
-      }
-
-      // FALLBACK 3: Search in seedOrdersJson.data
-      const rawSeedOrders: any[] = Array.isArray(seedOrdersJson?.data) ? seedOrdersJson.data : [];
-      const seedOrderMatch = rawSeedOrders.find((item: any) => {
-        const rNo = item.receiptNumber || item.id;
-        return rNo && rNo === normalizedReceipt;
-      });
-
-      if (seedOrderMatch) {
-        return OrderHelperMapper.fromBackendJsonb(seedOrderMatch, `detail-${cleanReceipt}`);
-      }
-
-      // If no data found anywhere, throw clear error
       const errReason = json?.message || json?.error || json?.code || httpError || `Không tìm thấy Biên Nhận ${normalizedReceipt}`;
       throw new Error(String(errReason));
     })();

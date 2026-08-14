@@ -1,710 +1,373 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Card, 
-  Typography, 
-  Tag, 
-  Space, 
-  Button, 
-  Input, 
-  Select, 
-  Row, 
-  Col, 
-  Badge, 
-  Empty, 
-  Table, 
-  Segmented, 
-  Modal, 
-  DatePicker, 
-  Tooltip, 
-  App,
-  Statistic
-} from 'antd';
-import { 
-  HistoryOutlined, 
-  SearchOutlined, 
-  ReloadOutlined, 
+import React, { useEffect, useMemo, useState } from 'react';
+import { App, Button, DatePicker, Empty, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import type { TableColumnsType } from 'antd';
+import {
+  ApiOutlined,
   DeleteOutlined,
-  EyeOutlined,
-  InfoCircleOutlined,
-  ClockCircleOutlined,
   DownloadOutlined,
-  UnorderedListOutlined,
-  NodeIndexOutlined,
-  UserOutlined,
-  CodeOutlined,
+  EyeOutlined,
+  FilterOutlined,
   GlobalOutlined,
-  CheckCircleOutlined
+  ReloadOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
-import { useTranslation } from 'react-i18next';
-import { motion, AnimatePresence } from 'motion/react';
-import dayjs from 'dayjs';
-import { getAuditLogs, AuditLog } from '../utils/auditLogger';
+import dayjs, { Dayjs } from 'dayjs';
 import PageContainer from '../components/PageContainer';
+import { AuditLog, getAuditLogs } from '../utils/auditLogger';
+import { auditService } from '../services/auditService';
 import { hasButtonPermission } from '../utils/rbacPresets';
 
-const { Title, Text, Paragraph } = Typography;
+const { Paragraph, Text } = Typography;
+const { RangePicker } = DatePicker;
 
-const AuditLogs: React.FC = () => {
-  const { t } = useTranslation();
-  const { message, modal } = App.useApp();
-
-  // Active User session for RBAC
-  const loggedUser = useMemo(() => {
+const getLoggedUser = () => {
+  try {
     const saved = localStorage.getItem('@@WEB_POS_PORTAL');
     return saved ? JSON.parse(saved) : null;
-  }, []);
+  } catch {
+    return null;
+  }
+};
 
-  const userRoles = useMemo(() => {
-    return loggedUser?.roles || [loggedUser?.role || 'user'];
-  }, [loggedUser]);
+const getModuleLabel = (path: string) => {
+  if (path.startsWith('/sales/orders')) return 'Đơn hàng';
+  if (path.startsWith('/sales/products')) return 'Sản phẩm';
+  if (path.startsWith('/sales/customers')) return 'Khách hàng';
+  if (path.startsWith('/sales/promotions')) return 'Khuyến mãi';
+  if (path.startsWith('/system/icons')) return 'Icons';
+  if (path.startsWith('/system/rbac')) return 'Phân quyền';
+  if (path.startsWith('/system/forms')) return 'Biểu mẫu';
+  if (path === '/') return 'Dashboard';
+  return path.split('/').filter(Boolean)[0] || 'Hệ thống';
+};
 
-  const canExport = useMemo(() => {
-    return hasButtonPermission(loggedUser?.buttonPermissions, 'system.audit.btn_export', userRoles);
-  }, [loggedUser, userRoles]);
+const isApiLog = (log: AuditLog) => log.action.startsWith('API_') || Boolean(log.url || log.method);
 
-  const canDelete = useMemo(() => {
-    return hasButtonPermission(loggedUser?.buttonPermissions, 'system.audit.btn_delete', userRoles);
-  }, [loggedUser, userRoles]);
+const jsonBlock = (value: any) => (
+  <pre className="max-h-[70vh] overflow-auto rounded-lg border border-slate-100 bg-slate-950 p-3 text-xs text-slate-100">
+    {JSON.stringify(value, null, 2)}
+  </pre>
+);
 
-  // State
+const AuditLogs: React.FC = () => {
+  const { message, modal } = App.useApp();
   const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [viewMode, setViewMode] = useState<'table' | 'timeline'>('table');
-  const [logCategory, setLogCategory] = useState<'all' | 'api' | 'ui'>('all');
-  const [searchText, setSearchText] = useState('');
-  const [filterAction, setFilterAction] = useState('All');
-  const [filterModule, setFilterModule] = useState('All');
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [actionFilter, setActionFilter] = useState('all');
+  const [moduleFilter, setModuleFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'ui' | 'api' | 'error'>('all');
+  const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null);
 
-  const refreshLogs = () => {
-    const data = getAuditLogs();
-    setLogs(data);
-  };
+  const loggedUser = useMemo(getLoggedUser, []);
+  const userRoles = useMemo(() => loggedUser?.roles || [loggedUser?.role || 'user'], [loggedUser]);
+  const canExport = useMemo(
+    () => hasButtonPermission(loggedUser?.buttonPermissions, 'system.audit.btn_export', userRoles),
+    [loggedUser, userRoles]
+  );
+  const canDelete = useMemo(
+    () => hasButtonPermission(loggedUser?.buttonPermissions, 'system.audit.btn_delete', userRoles),
+    [loggedUser, userRoles]
+  );
+
+  const refreshLogs = () => setLogs(getAuditLogs());
 
   useEffect(() => {
     refreshLogs();
-    const interval = setInterval(refreshLogs, 5000);
-    return () => clearInterval(interval);
+    const interval = window.setInterval(refreshLogs, 5000);
+    return () => window.clearInterval(interval);
   }, []);
 
-  // Filtered Logs
+  const actionOptions = useMemo(
+    () => Array.from(new Set(logs.map(log => log.action))).sort().map(action => ({ label: action, value: action })),
+    [logs]
+  );
+
+  const moduleOptions = useMemo(
+    () => Array.from(new Set(logs.map(log => getModuleLabel(log.path)))).sort().map(module => ({ label: module, value: module })),
+    [logs]
+  );
+
   const filteredLogs = useMemo(() => {
-    return logs.filter(l => {
-      const matchCategory = logCategory === 'all' 
-        ? true 
-        : logCategory === 'api' 
-          ? l.action.startsWith('API_') || Boolean(l.url || l.method)
-          : !l.action.startsWith('API_') && !l.url;
+    const keyword = searchText.trim().toLowerCase();
 
-      const matchSearch = !searchText || (
-        (l.text && l.text.toLowerCase().includes(searchText.toLowerCase())) ||
-        l.path.toLowerCase().includes(searchText.toLowerCase()) ||
-        l.action.toLowerCase().includes(searchText.toLowerCase()) ||
-        (l.element && l.element.toLowerCase().includes(searchText.toLowerCase())) ||
-        (l.url && l.url.toLowerCase().includes(searchText.toLowerCase()))
-      );
-      const matchAction = filterAction === 'All' || l.action === filterAction;
-      const matchModule = filterModule === 'All' || l.path.includes(filterModule);
+    return logs.filter(log => {
+      const moduleName = getModuleLabel(log.path);
+      const searchable = [
+        log.action,
+        log.element,
+        log.text,
+        log.value,
+        log.path,
+        log.url,
+        log.userName,
+        log.userEmail,
+        log.ipAddress,
+        log.browserName,
+        log.traceId,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
 
-      return matchCategory && matchSearch && matchAction && matchModule;
+      const matchKeyword = !keyword || searchable.includes(keyword);
+      const matchAction = actionFilter === 'all' || log.action === actionFilter;
+      const matchModule = moduleFilter === 'all' || moduleName === moduleFilter;
+      const matchType =
+        typeFilter === 'all' ||
+        (typeFilter === 'api' && isApiLog(log)) ||
+        (typeFilter === 'ui' && !isApiLog(log)) ||
+        (typeFilter === 'error' && (log.status === 0 || Number(log.status) >= 400));
+      const matchRange =
+        !range ||
+        (dayjs(log.timestamp).isAfter(range[0].startOf('day')) && dayjs(log.timestamp).isBefore(range[1].endOf('day')));
+
+      return matchKeyword && matchAction && matchModule && matchType && matchRange;
     });
-  }, [logs, logCategory, searchText, filterAction, filterModule]);
+  }, [actionFilter, logs, moduleFilter, range, searchText, typeFilter]);
 
-  // KPIs
   const stats = useMemo(() => {
-    const total = logs.length;
-    const apiCalls = logs.filter(l => l.action.startsWith('API_') || Boolean(l.url)).length;
-    const clicks = logs.filter(l => l.action === 'CLICK').length;
-    const changes = logs.filter(l => l.action === 'CHANGE').length;
-    return { total, apiCalls, clicks, changes };
+    const api = logs.filter(isApiLog).length;
+    const ui = logs.length - api;
+    const errors = logs.filter(log => log.status === 0 || Number(log.status) >= 400).length;
+    const traces = new Set(logs.map(log => log.traceId).filter(Boolean)).size;
+    return { api, ui, errors, traces };
   }, [logs]);
 
-  const handleClearLogs = () => {
-    if (!canDelete) {
-      message.error('Bạn không có quyền [system.audit.btn_delete] để xóa Nhật ký Audit Logs!');
+  const handleExport = () => {
+    if (!canExport) {
+      message.warning('Bạn chưa có quyền xuất audit log.');
       return;
     }
+
+    const blob = new Blob([JSON.stringify(filteredLogs, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `audit-logs-${dayjs().format('YYYYMMDD-HHmmss')}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    message.success(`Đã xuất ${filteredLogs.length} dòng audit log.`);
+  };
+
+  const handleClear = () => {
+    if (!canDelete) {
+      message.warning('Bạn chưa có quyền xóa audit log.');
+      return;
+    }
+
     modal.confirm({
-      title: 'Xác nhận xóa toàn bộ Nhật ký Audit Logs?',
-      content: 'Thao tác này sẽ dọn dẹp lịch sử thao tác lưu trên LocalStorage và không thể hoàn tác.',
-      okText: 'Xóa toàn bộ',
-      okType: 'danger',
+      title: 'Xóa audit log local?',
+      content: 'Thao tác này chỉ xóa audit log trên trình duyệt hiện tại.',
+      okText: 'Xóa',
+      okButtonProps: { danger: true },
       cancelText: 'Hủy',
       onOk: () => {
-        localStorage.removeItem('@@WEB_POS_AUDIT_LOG');
+        auditService.clearLogs();
         refreshLogs();
-        message.success('Đã dọn dẹp lịch sử Audit Logs thành công!');
-      }
+        message.success('Đã xóa audit log local.');
+      },
     });
   };
 
-  const handleExportLogs = () => {
-    if (!canExport) {
-      message.error('Bạn không có quyền [system.audit.btn_export] để xuất file Excel!');
-      return;
-    }
-    message.loading({ content: 'Đang chuẩn bị dữ liệu xuất Excel...', key: 'export' });
-    setTimeout(() => {
-      message.success({ content: `Đã xuất ${filteredLogs.length} dòng dữ liệu Nhật ký thành công!`, key: 'export' });
-    }, 800);
-  };
-
-  const getActionTag = (action: string) => {
-    switch (action) {
-      case 'CLICK':
-        return <Tag color="blue" className="font-bold border-blue-200">CLICK</Tag>;
-      case 'CHANGE':
-        return <Tag color="orange" className="font-bold border-orange-200">CHANGE</Tag>;
-      case 'NAVIGATE':
-        return <Tag color="purple" className="font-bold border-purple-200">NAVIGATE</Tag>;
-      case 'API_GET':
-        return <Tag color="cyan" className="font-bold border-cyan-200">API GET</Tag>;
-      case 'API_POST':
-        return <Tag color="green" className="font-bold border-green-200">API POST</Tag>;
-      case 'API_PUT':
-        return <Tag color="gold" className="font-bold border-gold-200">API PUT</Tag>;
-      case 'API_DELETE':
-        return <Tag color="red" className="font-bold border-red-200">API DELETE</Tag>;
-      default:
-        if (action.startsWith('API_') && action.endsWith('_ERROR')) {
-          return <Tag color="magenta" className="font-bold border-magenta-200">{action}</Tag>;
-        }
-        if (action.startsWith('API_')) {
-          return <Tag color="blue" className="font-bold border-blue-200">{action}</Tag>;
-        }
-        return <Tag color="default" className="font-bold">{action}</Tag>;
-    }
-  };
-
-  // Columns for Smart Table View
-  const columns = [
+  const columns: TableColumnsType<AuditLog> = [
     {
       title: 'Thời gian',
       dataIndex: 'timestamp',
-      key: 'timestamp',
-      width: 160,
-      render: (ts: number) => (
-        <span className="font-mono text-xs text-slate-700 flex items-center gap-1.5">
-          <ClockCircleOutlined className="text-slate-400" />
-          {dayjs(ts).format('DD/MM/YYYY HH:mm:ss')}
-        </span>
-      )
+      width: 170,
+      fixed: 'left',
+      render: value => (
+        <div className="leading-tight">
+          <div className="font-semibold text-slate-800">{dayjs(value).format('DD/MM/YYYY HH:mm:ss')}</div>
+          <div className="text-xs text-slate-400">{dayjs(value).format('YYYY-MM-DD')}</div>
+        </div>
+      ),
     },
     {
-      title: 'Tài khoản',
-      key: 'user',
-      width: 170,
-      render: () => (
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold">
-            <UserOutlined />
-          </div>
-          <div>
-            <div className="font-bold text-xs text-slate-800">{loggedUser?.name || 'Hệ thống'}</div>
-            <div className="text-[10px] text-slate-400 font-mono">{loggedUser?.username || 'admin'}</div>
-          </div>
+      title: 'Người dùng',
+      width: 190,
+      render: (_, log) => (
+        <div className="min-w-0">
+          <div className="truncate font-semibold text-slate-800">{log.userName || log.userEmail || 'Ẩn danh'}</div>
+          <div className="truncate text-xs text-slate-500">{log.userEmail || log.userId || log.sessionId || 'Chưa có session'}</div>
         </div>
-      )
+      ),
     },
     {
       title: 'Hành động',
-      dataIndex: 'action',
-      key: 'action',
-      width: 120,
-      render: (action: string) => getActionTag(action)
+      width: 170,
+      render: (_, log) => (
+        <Space direction="vertical" size={2}>
+          <Tag color={isApiLog(log) ? 'purple' : 'blue'}>{log.action}</Tag>
+          <Text type="secondary" className="text-xs">{log.element}</Text>
+        </Space>
+      ),
     },
     {
-      title: 'Tên Nút / Thao tác API',
-      key: 'text',
-      render: (record: AuditLog) => (
+      title: 'Module / vị trí',
+      width: 260,
+      render: (_, log) => (
         <div>
-          <div className="font-bold text-xs text-slate-800">{record.text || 'Thao tác giao diện'}</div>
-          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-            <span className="text-[10px] font-mono text-slate-400">
-              Element: <span className="bg-slate-100 px-1 py-0.5 rounded text-slate-600 font-semibold">{record.element}</span>
-            </span>
-            {record.requestBody !== undefined && (
-              <Tag color="blue" className="text-[9px] font-mono m-0 border-blue-200">
-                +Req Body
-              </Tag>
-            )}
-            {record.responseBody !== undefined && (
-              <Tag color="emerald" className="text-[9px] font-mono m-0 border-emerald-200">
-                +Resp Body
-              </Tag>
-            )}
+          <div className="font-semibold text-slate-800">{getModuleLabel(log.path)}</div>
+          <Paragraph className="!mb-0 text-xs" copyable={{ text: log.locationHref || log.path }} ellipsis={{ rows: 1 }}>
+            {log.path}
+          </Paragraph>
+        </div>
+      ),
+    },
+    {
+      title: 'Nội dung',
+      width: 280,
+      render: (_, log) => (
+        <div>
+          <div className="line-clamp-1 text-sm text-slate-800">{log.text || log.value || '-'}</div>
+          {log.value && <div className="line-clamp-1 text-xs text-slate-500">{log.value}</div>}
+        </div>
+      ),
+    },
+    {
+      title: 'IP / trình duyệt',
+      width: 230,
+      render: (_, log) => (
+        <div>
+          <Space size={6}>
+            <GlobalOutlined className="text-slate-400" />
+            <Text className="font-mono text-xs">{log.ipAddress || 'Chưa ghi nhận'}</Text>
+          </Space>
+          <div className="mt-1 truncate text-xs text-slate-500">
+            {log.browserName || 'Browser'} {log.browserVersion || ''}
           </div>
         </div>
-      )
+      ),
     },
     {
-      title: 'Module / URL Route',
-      dataIndex: 'path',
-      key: 'path',
-      width: 200,
-      render: (path: string, record: AuditLog) => (
-        <div className="space-y-0.5">
-          <Tag color="cyan" className="font-mono text-[11px] m-0 border-cyan-200 block truncate max-w-[180px]">
-            {path}
+      title: 'Trace / trạng thái',
+      width: 210,
+      render: (_, log) => (
+        <Space direction="vertical" size={4}>
+          <Tag color={!isApiLog(log) ? 'blue' : log.status && log.status < 400 ? 'green' : 'red'}>
+            {!isApiLog(log) ? 'UI' : log.status || 'ERROR'}
           </Tag>
-          {record.url && (
-            <div className="text-[10px] font-mono text-slate-400 truncate max-w-[180px]" title={record.url}>
-              {record.url}
-            </div>
-          )}
-        </div>
-      )
+          <Paragraph className="!mb-0 max-w-44 font-mono text-xs" copyable={{ text: log.traceId || '' }} ellipsis>
+            {log.traceId || 'no-trace'}
+          </Paragraph>
+        </Space>
+      ),
     },
     {
-      title: 'Giá trị / Chi tiết',
-      key: 'value',
-      width: 180,
-      render: (record: AuditLog) => (
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-slate-600 font-mono truncate max-w-[110px]" title={record.value}>
-            {record.value ? record.value : '-'}
-          </span>
-          <Button 
-            type="text" 
-            size="small" 
-            icon={<EyeOutlined className="text-blue-600" />}
-            onClick={() => {
-              setSelectedLog(record);
-              setIsDetailModalOpen(true);
-            }}
-          >
-            Chi tiết
-          </Button>
-        </div>
-      )
-    }
+      title: '',
+      width: 70,
+      fixed: 'right',
+      render: (_, log) => (
+        <Tooltip title="Xem JSONB">
+          <Button type="text" icon={<EyeOutlined />} onClick={() => setSelectedLog(log)} />
+        </Tooltip>
+      ),
+    },
   ];
 
   return (
-    <PageContainer
-      title="Nhật ký Hệ thống & Audit Logs"
-      subtitle="Theo dõi & Giám sát toàn bộ thao tác, tương tác nút bấm, thay đổi dữ liệu thời gian thực"
-    >
-      <div className="space-y-5">
-        {/* Top KPI Cards */}
-        <Row gutter={[16, 16]}>
-          <Col xs={12} sm={6}>
-            <Card className="shadow-sm border border-slate-200/80 rounded-xl bg-white p-2">
-              <Statistic 
-                title={<span className="text-xs font-semibold text-slate-500">Tổng sự kiện ghi nhận</span>}
-                value={stats.total}
-                prefix={<HistoryOutlined className="text-blue-600 mr-1" />}
-                valueStyle={{ color: '#1e293b', fontWeight: 800, fontSize: 22 }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card className="shadow-sm border border-slate-200/80 rounded-xl bg-white p-2">
-              <Statistic 
-                title={<span className="text-xs font-semibold text-slate-500">API Calls (Req & Resp)</span>}
-                value={stats.apiCalls}
-                prefix={<CodeOutlined className="text-emerald-600 mr-1" />}
-                valueStyle={{ color: '#059669', fontWeight: 800, fontSize: 22 }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card className="shadow-sm border border-slate-200/80 rounded-xl bg-white p-2">
-              <Statistic 
-                title={<span className="text-xs font-semibold text-slate-500">Clicks Nút bấm (CLICK)</span>}
-                value={stats.clicks}
-                prefix={<CheckCircleOutlined className="text-sky-600 mr-1" />}
-                valueStyle={{ color: '#0284c7', fontWeight: 800, fontSize: 22 }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card className="shadow-sm border border-slate-200/80 rounded-xl bg-white p-2">
-              <Statistic 
-                title={<span className="text-xs font-semibold text-slate-500">Thay đổi Ô nhập (CHANGE)</span>}
-                value={stats.changes}
-                prefix={<CodeOutlined className="text-amber-600 mr-1" />}
-                valueStyle={{ color: '#d97706', fontWeight: 800, fontSize: 22 }}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Filter Toolbar Card */}
-        <Card className="shadow-sm border border-slate-200 rounded-xl bg-white">
-          <div className="space-y-3">
-            {/* Category Segmented Selector */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-600">Phân loại Nhật ký:</span>
-                <Segmented
-                  options={[
-                    { value: 'all', label: `Tất cả (${logs.length})` },
-                    { value: 'api', label: `Chỉ API Calls (${stats.apiCalls})` },
-                    { value: 'ui', label: `Giao diện UI (${logs.length - stats.apiCalls})` },
-                  ]}
-                  value={logCategory}
-                  onChange={(val) => setLogCategory(val as any)}
-                  className="bg-slate-100 p-0.5"
-                />
-              </div>
-
-              <Segmented
-                options={[
-                  { value: 'table', icon: <UnorderedListOutlined />, label: 'Bảng' },
-                  { value: 'timeline', icon: <NodeIndexOutlined />, label: 'Tiến trình' },
-                ]}
-                value={viewMode}
-                onChange={(val) => setViewMode(val as 'table' | 'timeline')}
-              />
-            </div>
-
-            <Row gutter={[16, 16]} align="middle" justify="space-between">
-              <Col xs={24} lg={16}>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Input 
-                    prefix={<SearchOutlined className="text-slate-400" />} 
-                    placeholder="Tìm theo tên nút, URL API, payload..." 
-                    value={searchText}
-                    onChange={e => setSearchText(e.target.value)}
-                    allowClear
-                    className="w-full sm:w-64"
-                  />
-
-                  <Select 
-                    value={filterAction} 
-                    onChange={setFilterAction}
-                    className="w-44"
-                    options={[
-                      { value: 'All', label: 'Tất cả Hành động' },
-                      { value: 'API_GET', label: 'API GET' },
-                      { value: 'API_POST', label: 'API POST' },
-                      { value: 'API_PUT', label: 'API PUT' },
-                      { value: 'API_DELETE', label: 'API DELETE' },
-                      { value: 'CLICK', label: 'CLICK (Nhấp nút)' },
-                      { value: 'CHANGE', label: 'CHANGE (Nhập liệu)' },
-                      { value: 'NAVIGATE', label: 'NAVIGATE (Điều hướng)' },
-                    ]}
-                  />
-
-                  <Select 
-                    value={filterModule} 
-                    onChange={setFilterModule}
-                    className="w-44"
-                    options={[
-                      { value: 'All', label: 'Tất cả Module' },
-                      { value: '/sales/orders', label: 'Đơn hàng POS' },
-                      { value: '/sales/products', label: 'Sản phẩm' },
-                      { value: '/sales/customers', label: 'Khách hàng' },
-                      { value: '/sales/promotions', label: 'Khuyến mãi' },
-                      { value: '/system/rbac', label: 'Phân quyền RBAC' },
-                      { value: '/system/audit-logs', label: 'Audit Logs' },
-                    ]}
-                  />
+    <PageContainer noCard>
+      <div className="space-y-4 sm:space-y-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ['Total', logs.length, ReloadOutlined, 'blue'],
+            ['API', stats.api, ApiOutlined, 'purple'],
+            ['UI', stats.ui, FilterOutlined, 'cyan'],
+            ['Trace', stats.traces, SearchOutlined, 'green'],
+          ].map(([label, value, Icon, color]) => (
+            <div key={label as string} className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+              <Space size={10}>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                  {React.createElement(Icon as React.ComponentType)}
                 </div>
-              </Col>
+                <div>
+                  <div className="text-xs font-semibold uppercase text-slate-400">{label as string}</div>
+                  <div className="text-2xl font-bold text-slate-900">{value as number}</div>
+                </div>
+              </Space>
+              {color === 'red' && stats.errors > 0 && <Tag color="red">{stats.errors}</Tag>}
+            </div>
+          ))}
+        </div>
 
-              <Col xs={24} lg={8} className="flex justify-start lg:justify-end items-center gap-3">
-                <Button icon={<ReloadOutlined />} onClick={refreshLogs}>
-                  Làm mới
-                </Button>
-
-                {canExport && (
-                  <Button 
-                    icon={<DownloadOutlined />} 
-                    onClick={handleExportLogs}
-                    className="border-emerald-600 text-emerald-600 hover:bg-emerald-50"
-                  >
-                    Xuất Excel
-                  </Button>
-                )}
-
-                {canDelete && (
-                  <Button danger icon={<DeleteOutlined />} onClick={handleClearLogs}>
-                    Xóa lịch sử
-                  </Button>
-                )}
-              </Col>
-            </Row>
-          </div>
-        </Card>
-
-        {/* View Content: Smart Table with Expandable Rows vs Timeline */}
-        {viewMode === 'table' ? (
-          <Card className="shadow-sm border border-slate-200 rounded-xl overflow-hidden p-0">
-            <Table
-              dataSource={filteredLogs.map((l, i) => ({ ...l, key: i }))}
-              columns={columns}
-              pagination={{ pageSize: 15, showSizeChanger: true, showTotal: (total) => `Tổng cộng ${total} nhật ký` }}
-              size="middle"
-              className="custom-audit-table"
-              expandable={{
-                expandedRowRender: (record: AuditLog) => (
-                  <div className="bg-slate-900 p-4 rounded-xl text-xs space-y-3 font-mono border border-slate-800 text-slate-200">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                      <div className="flex items-center gap-2 font-bold">
-                        <CodeOutlined className="text-emerald-400" />
-                        <span>Chi tiết Request & Response Payload:</span>
-                        <code className="text-sky-300 font-mono text-[11px]">{record.method || 'GET'} {record.url || record.text}</code>
-                      </div>
-                      {record.status !== undefined && (
-                        <Tag color={record.status >= 200 && record.status < 300 ? 'green' : 'red'} className="font-mono font-bold m-0">
-                          HTTP {record.status} ({record.durationMs || 0}ms)
-                        </Tag>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Request Payload */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-slate-400 font-sans text-[11px] font-bold">
-                          <span>Dữ liệu gửi đi (Request Payload):</span>
-                          {record.requestBody !== undefined && (
-                            <Button 
-                              size="small" 
-                              type="text" 
-                              className="text-sky-400 text-[10px] hover:text-sky-300 p-0 h-auto font-sans"
-                              onClick={() => {
-                                navigator.clipboard.writeText(
-                                  typeof record.requestBody === 'object' 
-                                    ? JSON.stringify(record.requestBody, null, 2) 
-                                    : String(record.requestBody)
-                                );
-                                message.success('Đã sao chép Request Payload!');
-                              }}
-                            >
-                              Sao chép JSON
-                            </Button>
-                          )}
-                        </div>
-                        <pre className="bg-slate-950 text-sky-300 p-3 rounded-lg text-[11px] font-mono overflow-x-auto max-h-60 border border-slate-800/80 leading-relaxed">
-                          {record.requestBody !== undefined 
-                            ? (typeof record.requestBody === 'object' ? JSON.stringify(record.requestBody, null, 2) : String(record.requestBody)) 
-                            : 'Không có dữ liệu gửi đi (Empty / GET Request)'}
-                        </pre>
-                      </div>
-
-                      {/* Response Payload */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-slate-400 font-sans text-[11px] font-bold">
-                          <span>Dữ liệu nhận về (Response Payload):</span>
-                          {record.responseBody !== undefined && (
-                            <Button 
-                              size="small" 
-                              type="text" 
-                              className="text-emerald-400 text-[10px] hover:text-emerald-300 p-0 h-auto font-sans"
-                              onClick={() => {
-                                navigator.clipboard.writeText(
-                                  typeof record.responseBody === 'object' 
-                                    ? JSON.stringify(record.responseBody, null, 2) 
-                                    : String(record.responseBody)
-                                );
-                                message.success('Đã sao chép Response Payload!');
-                              }}
-                            >
-                              Sao chép JSON
-                            </Button>
-                          )}
-                        </div>
-                        <pre className="bg-slate-950 text-emerald-400 p-3 rounded-lg text-[11px] font-mono overflow-x-auto max-h-60 border border-slate-800/80 leading-relaxed">
-                          {record.responseBody !== undefined 
-                            ? (typeof record.responseBody === 'object' ? JSON.stringify(record.responseBody, null, 2) : String(record.responseBody)) 
-                            : 'Không có dữ liệu phản hồi'}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
-                ),
-                rowExpandable: (record) => Boolean(record.requestBody !== undefined || record.responseBody !== undefined || record.url)
-              }}
+        <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+          <Space wrap className="w-full">
+            <Input
+              allowClear
+              prefix={<SearchOutlined className="text-slate-400" />}
+              placeholder="Tìm action, user, IP, traceId, path..."
+              value={searchText}
+              onChange={event => setSearchText(event.target.value)}
+              className="w-72"
             />
-          </Card>
-        ) : (
-          <Card className="shadow-sm border border-slate-200 rounded-xl bg-slate-50/50 p-6">
-            {filteredLogs.length === 0 ? (
-              <Empty description="Không tìm thấy nhật ký thao tác phù hợp" />
-            ) : (
-              <div className="space-y-4 max-w-4xl mx-auto">
-                {filteredLogs.slice(0, 50).map((log, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.015 }}
-                    className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-start gap-4"
-                  >
-                    <div className="shrink-0 pt-1">
-                      {getActionTag(log.action)}
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-800 text-sm">{log.text || 'Thao tác Giao diện'}</span>
-                        <span className="text-xs font-mono text-slate-400 flex items-center gap-1">
-                          <ClockCircleOutlined />
-                          {dayjs(log.timestamp).format('DD/MM/YYYY HH:mm:ss')}
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-600 flex items-center gap-2">
-                        <span>Đường dẫn:</span>
-                        <Tag color="cyan" className="font-mono text-[10px]">{log.path}</Tag>
-                        <span>Element ID:</span>
-                        <span className="font-mono text-[11px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">{log.element}</span>
-                      </div>
-                      {log.value && (
-                        <div className="mt-2 text-xs bg-slate-50 p-2 rounded border border-slate-200/80 font-mono text-slate-700">
-                          Giá trị / Input: {log.value}
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </Card>
-        )}
+            <Select
+              value={typeFilter}
+              onChange={setTypeFilter}
+              options={[
+                { label: 'Tất cả', value: 'all' },
+                { label: 'UI', value: 'ui' },
+                { label: 'API', value: 'api' },
+                { label: 'Lỗi', value: 'error' },
+              ]}
+              className="w-32"
+            />
+            <Select
+              value={moduleFilter}
+              onChange={setModuleFilter}
+              options={[{ label: 'Tất cả module', value: 'all' }, ...moduleOptions]}
+              className="w-44"
+            />
+            <Select
+              showSearch
+              value={actionFilter}
+              onChange={setActionFilter}
+              options={[{ label: 'Tất cả action', value: 'all' }, ...actionOptions]}
+              className="w-48"
+            />
+            <RangePicker value={range} onChange={value => setRange(value as [Dayjs, Dayjs] | null)} />
+            <Button icon={<ReloadOutlined />} onClick={refreshLogs}>Làm mới</Button>
+            <Button icon={<DownloadOutlined />} type="primary" onClick={handleExport} disabled={!filteredLogs.length}>Xuất JSON</Button>
+            <Button icon={<DeleteOutlined />} danger onClick={handleClear} disabled={!logs.length}>Xóa local</Button>
+          </Space>
+        </div>
+
+        <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+          <Table
+            rowKey={record => `${record.timestamp}-${record.traceId || record.action}`}
+            columns={columns}
+            dataSource={filteredLogs}
+            size="middle"
+            scroll={{ x: 1580 }}
+            pagination={{ pageSize: 20, showSizeChanger: true }}
+            locale={{
+              emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có audit log thật." />,
+            }}
+          />
+        </div>
       </div>
 
-      {/* Detail Modal */}
       <Modal
-        title={
-          <div className="flex items-center gap-2">
-            <InfoCircleOutlined className="text-blue-600" />
-            <span>Chi tiết Sự kiện & Request/Response Audit Log</span>
-          </div>
+        title="Audit log JSONB"
+        open={Boolean(selectedLog)}
+        onCancel={() => setSelectedLog(null)}
+        footer={
+          <Space>
+            <Button
+              onClick={() => {
+                if (!selectedLog) return;
+                void navigator.clipboard.writeText(JSON.stringify(selectedLog, null, 2));
+                message.success('Đã copy JSONB audit log.');
+              }}
+            >
+              Copy JSON
+            </Button>
+            <Button type="primary" onClick={() => setSelectedLog(null)}>Đóng</Button>
+          </Space>
         }
-        open={isDetailModalOpen}
-        onCancel={() => setIsDetailModalOpen(false)}
-        width={720}
-        footer={[
-          <Button key="close" type="primary" onClick={() => setIsDetailModalOpen(false)}>
-            Đóng
-          </Button>
-        ]}
+        width={1040}
       >
-        {selectedLog && (
-          <div className="space-y-3 pt-2 text-xs">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
-              <div>
-                <span className="text-slate-500 block text-[11px]">Mốc thời gian:</span>
-                <span className="font-mono font-bold text-slate-800">{dayjs(selectedLog.timestamp).format('DD/MM/YYYY HH:mm:ss')}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block text-[11px]">Loại hành động:</span>
-                <div className="mt-0.5">{getActionTag(selectedLog.action)}</div>
-              </div>
-              <div>
-                <span className="text-slate-500 block text-[11px]">Thao tác / URL:</span>
-                <span className="font-semibold text-slate-800 break-all">{selectedLog.text || selectedLog.url || 'Giao diện'}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block text-[11px]">Route / Path:</span>
-                <span className="font-mono text-blue-600 font-semibold">{selectedLog.path}</span>
-              </div>
-              {selectedLog.method && (
-                <div>
-                  <span className="text-slate-500 block text-[11px]">HTTP Method:</span>
-                  <Tag color="purple" className="font-mono font-bold">{selectedLog.method}</Tag>
-                </div>
-              )}
-              {selectedLog.status !== undefined && (
-                <div>
-                  <span className="text-slate-500 block text-[11px]">Mã HTTP Status:</span>
-                  <Tag color={selectedLog.status >= 200 && selectedLog.status < 300 ? 'green' : 'volcano'} className="font-mono font-bold">
-                    {selectedLog.status} {selectedLog.durationMs !== undefined ? `(${selectedLog.durationMs}ms)` : ''}
-                  </Tag>
-                </div>
-              )}
-            </div>
-
-            {selectedLog.url && (
-              <div className="p-2.5 bg-slate-900 text-slate-100 rounded-lg font-mono text-[11px] break-all">
-                <span className="text-emerald-400 font-bold">{selectedLog.method || 'GET'}</span> {selectedLog.url}
-              </div>
-            )}
-
-            {selectedLog.requestBody !== undefined && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700">Dữ liệu gửi đi (Request Payload):</span>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      size="small" 
-                      type="text" 
-                      className="text-blue-600 text-[11px] hover:text-blue-800 p-0 h-auto font-medium"
-                      onClick={() => {
-                        navigator.clipboard.writeText(
-                          typeof selectedLog.requestBody === 'object' 
-                            ? JSON.stringify(selectedLog.requestBody, null, 2) 
-                            : String(selectedLog.requestBody)
-                        );
-                        message.success('Đã sao chép Request Payload!');
-                      }}
-                    >
-                      Sao chép Request JSON
-                    </Button>
-                    <Tag color="blue" className="text-[10px] font-mono m-0">JSON Body</Tag>
-                  </div>
-                </div>
-                <pre className="bg-slate-950 text-sky-300 p-3 rounded-lg text-[11px] font-mono overflow-x-auto max-h-48 border border-slate-800">
-                  {typeof selectedLog.requestBody === 'object' 
-                    ? JSON.stringify(selectedLog.requestBody, null, 2) 
-                    : String(selectedLog.requestBody)}
-                </pre>
-              </div>
-            )}
-
-            {selectedLog.responseBody !== undefined && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-700">Dữ liệu nhận về (Response Payload):</span>
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      size="small" 
-                      type="text" 
-                      className="text-emerald-600 text-[11px] hover:text-emerald-800 p-0 h-auto font-medium"
-                      onClick={() => {
-                        navigator.clipboard.writeText(
-                          typeof selectedLog.responseBody === 'object' 
-                            ? JSON.stringify(selectedLog.responseBody, null, 2) 
-                            : String(selectedLog.responseBody)
-                        );
-                        message.success('Đã sao chép Response Payload!');
-                      }}
-                    >
-                      Sao chép Response JSON
-                    </Button>
-                    <Tag color="emerald" className="text-[10px] font-mono m-0">JSON Response</Tag>
-                  </div>
-                </div>
-                <pre className="bg-slate-950 text-emerald-400 p-3 rounded-lg text-[11px] font-mono overflow-x-auto max-h-56 border border-slate-800">
-                  {typeof selectedLog.responseBody === 'object' 
-                    ? JSON.stringify(selectedLog.responseBody, null, 2) 
-                    : String(selectedLog.responseBody)}
-                </pre>
-              </div>
-            )}
-
-            <div className="py-1 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 block font-semibold">Toàn bộ Raw Audit Log DTO:</span>
-                <Button 
-                  size="small" 
-                  type="text" 
-                  className="text-slate-600 text-[11px] hover:text-slate-900 p-0 h-auto font-medium"
-                  onClick={() => {
-                    navigator.clipboard.writeText(JSON.stringify(selectedLog, null, 2));
-                    message.success('Đã sao chép toàn bộ DTO!');
-                  }}
-                >
-                  Sao chép Raw DTO
-                </Button>
-              </div>
-              <pre className="bg-slate-100 text-slate-800 p-3 rounded-lg text-[10px] font-mono overflow-x-auto border border-slate-200/80">
-                {JSON.stringify(selectedLog, null, 2)}
-              </pre>
-            </div>
-          </div>
-        )}
+        {selectedLog && jsonBlock(selectedLog)}
       </Modal>
     </PageContainer>
   );

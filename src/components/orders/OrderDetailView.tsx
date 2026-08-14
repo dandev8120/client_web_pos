@@ -313,7 +313,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
 
                       {/* Invoice & Buyer block */}
                       <div className="space-y-2 sm:space-y-3">
-                        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Thông tin xuất hóa đơn (Invoice Info)</h4>
+                        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Thông tin xuất hóa đơn</h4>
                         <div className="space-y-1 text-xs">
                           <DetailRow label="Tên người mua" value={detail.vat.fullName === 'Không có dữ liệu' ? <span className="text-slate-400 italic">Không có dữ liệu</span> : detail.vat.fullName} />
                           <DetailRow label="Tên đơn vị mua" value={detail.vat.companyName === 'Không có dữ liệu' ? <span className="text-slate-400 italic">Không có dữ liệu</span> : detail.vat.companyName} />
@@ -388,7 +388,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                             <th className="p-3 text-center">Số lượng</th>
                             <th className="p-3 text-right">Đơn giá</th>
                             <th className="p-3 text-right">Chiết khấu SP</th>
-                            <th className="p-3 text-right">VAT (10%)</th>
+                            <th className="p-3 text-right">VAT</th>
                             <th className="p-3 text-right">Thành tiền</th>
                           </tr>
                         </thead>
@@ -479,17 +479,17 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                       {/* Right Side: Totals Summary block */}
                       <div className="w-full md:w-80 space-y-2 text-xs">
                         <div className="flex justify-between py-1 border-b border-slate-50">
-                          <span className="text-slate-400 font-medium">Tạm tính hóa đơn:</span>
+                          <span className="text-slate-400 font-medium">Cộng tiền hàng:</span>
                           <span className="text-slate-700 font-semibold">{detail.totals.subtotal}</span>
                         </div>
-                        {order.discount > 0 && (
+                        {detail.totals.discountTotal !== '0 ₫' && (
                           <div className="flex justify-between py-1 border-b border-slate-50 text-rose-600">
-                            <span className="font-medium">Tổng giảm giá:</span>
+                            <span className="font-medium">Tổng tiền chiết khấu:</span>
                             <span className="font-bold">-{detail.totals.discountTotal}</span>
                           </div>
                         )}
                         <div className="flex justify-between py-1 border-b border-slate-50">
-                          <span className="text-slate-400 font-medium">Cộng tiền thuế GTGT (VAT):</span>
+                          <span className="text-slate-400 font-medium">Tổng thuế GTGT (VAT):</span>
                           <span className="text-slate-700 font-semibold">{detail.totals.vatTotal}</span>
                         </div>
                         <div className="border-t border-dashed border-slate-200 pt-3 my-2 flex justify-between items-center">
@@ -557,7 +557,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
             >
               <div className="flex items-center gap-2">
                 <TeamOutlined className="text-blue-600 text-base" />
-                <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Thông tin bán hàng & Ca kíp</span>
+                <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Thông tin ca</span>
               </div>
               <Button 
                 type="text" 
@@ -578,8 +578,8 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                   <div className="p-4 sm:p-5 border-t border-slate-100 space-y-1 text-xs">
                     <DetailRow label="Ngày chứng từ" value={detail.rawJsonb?.activity_log?.receipt?.receiptDate || detail.rawJsonb?.activityLog?.receipt?.receiptDate || detail.receiptVoucher.createdAt} />
                     <DetailRow label="Thu ngân" value={detail.employees.cashier} />
-                    <DetailRow label="NV bán hàng" value={detail.employees.salesStaff} />
-                    <DetailRow label="Mã ca kíp" value={detail.employees.workShift} />
+                    <DetailRow label="Nhân viên" value={detail.employees.salesStaff} />
+                    <DetailRow label="Tên ca" value={detail.employees.workShift} />
                   </div>
                 </motion.div>
               )}
@@ -594,7 +594,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
             >
               <div className="flex items-center gap-2">
                 <NodeIndexOutlined className="text-blue-600 text-base" />
-                <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Tiến trình Workflow & Nhật ký hoạt động</span>
+                <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Nhật ký hoạt động</span>
               </div>
               <Button 
                 type="text" 
@@ -645,7 +645,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                         {
                           key: 'payment',
                           num: 2,
-                          title: 'Thanh toán Gateway',
+                          title: 'Thanh toán',
                           nodeType: 'HTTP Request (Payment)',
                           headerBg: 'bg-blue-600',
                           badgeText: 'ACTION',

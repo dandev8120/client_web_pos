@@ -424,7 +424,7 @@ export const Orders: React.FC = () => {
       .catch(err => {
         console.warn('POST search API warning:', err);
         if (isMounted) {
-          message.warning('Không thể kết nối máy chủ API từ xa. Đang sử dụng dữ liệu cục bộ.');
+          message.warning('Không thể kết nối máy chủ API.');
           setPostSearchResults([]);
           setPostTotalCount(0);
           setIsLoading(false);
@@ -595,7 +595,7 @@ export const Orders: React.FC = () => {
       prev.set('forceRefresh', 'true');
       return prev;
     });
-    message.success('Làm mới dữ liệu thành công! Đã gửi tham số forceRefresh = true qua POST');
+    message.success('Làm mới dữ liệu thành công.');
   };
 
   const handleReset = () => {

@@ -1,182 +1,306 @@
-/**
- * Simple audit logger to track user interactions
- */
-
+import { AuditLogRequestDto, AuditLogResponseDto } from '../dtos/AuditLogDto';
 import { auditService } from '../services/auditService';
-import { AuditLogResponseDto } from '../dtos/AuditLogDto';
 
 export type AuditLog = AuditLogResponseDto;
 
+type ClientContext = Pick<
+  AuditLogRequestDto,
+  | 'traceId'
+  | 'sessionId'
+  | 'ipAddress'
+  | 'forwardedFor'
+  | 'userAgent'
+  | 'language'
+  | 'geoLocation'
+  | 'metadata'
+>;
+
+const AUDIT_PAGE_PREFIX = '/system/audit-logs';
+const INTERNAL_AUDIT_API = '/api/audit/';
+const SENSITIVE_KEY_PATTERN = /(password|pass|token|access_token|id_token|refresh_token|authorization|secret|cookie)/i;
+const clientContext: ClientContext = {};
+
+let originalFetchRef: typeof fetch | null = null;
+let clientContextLoaded = false;
+
+const createTraceId = () => {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `trace-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
+const shouldSkipAudit = (path = window.location.pathname) => path.startsWith(AUDIT_PAGE_PREFIX);
+
+const shouldSkipFetchAudit = (url: string) => {
+  if (shouldSkipAudit()) return true;
+
+  try {
+    const targetUrl = new URL(url, window.location.origin);
+    return targetUrl.pathname.startsWith(INTERNAL_AUDIT_API) || targetUrl.pathname.startsWith(AUDIT_PAGE_PREFIX);
+  } catch {
+    return url.includes(INTERNAL_AUDIT_API) || url.includes(AUDIT_PAGE_PREFIX);
+  }
+};
+
+const sanitizeValue = (key: string, value: any): any => {
+  if (SENSITIVE_KEY_PATTERN.test(key)) return '[MASKED]';
+
+  if (value === null || value === undefined) return value;
+  if (typeof value === 'string') return value.length > 500 ? `${value.slice(0, 500)}...` : value;
+  if (typeof value !== 'object') return value;
+  if (value instanceof FormData) return '[FormData]';
+  if (value instanceof Blob) return `[Blob ${value.type || 'unknown'}]`;
+  if (value instanceof URLSearchParams) return Object.fromEntries(value.entries());
+  if (Array.isArray(value)) return value.slice(0, 50).map(item => sanitizeValue(key, item));
+
+  return Object.entries(value).reduce<Record<string, any>>((result, [entryKey, entryValue]) => {
+    result[entryKey] = sanitizeValue(entryKey, entryValue);
+    return result;
+  }, {});
+};
+
+const parseBody = (body: BodyInit | null | undefined) => {
+  if (!body) return undefined;
+  if (typeof body !== 'string') return sanitizeValue('body', body);
+
+  try {
+    return sanitizeValue('body', JSON.parse(body));
+  } catch {
+    return sanitizeValue('body', body);
+  }
+};
+
+const getBrowserInfo = () => {
+  const ua = navigator.userAgent;
+  const browserPatterns: Array<[string, RegExp]> = [
+    ['Microsoft Edge', /Edg\/([\d.]+)/],
+    ['Google Chrome', /Chrome\/([\d.]+)/],
+    ['Firefox', /Firefox\/([\d.]+)/],
+    ['Safari', /Version\/([\d.]+).*Safari/],
+  ];
+
+  const matched = browserPatterns
+    .map(([name, pattern]) => {
+      const match = ua.match(pattern);
+      return match ? { browserName: name, browserVersion: match[1] } : null;
+    })
+    .find(Boolean);
+
+  return {
+    browserName: matched?.browserName || 'Unknown',
+    browserVersion: matched?.browserVersion,
+    userAgent: ua,
+    platform: navigator.platform,
+    language: navigator.language,
+  };
+};
+
+const getAuthUser = () => {
+  try {
+    const session = localStorage.getItem('@@WEB_POS_PORTAL');
+    const parsedSession = session ? JSON.parse(session) : null;
+    const oidcKey = Object.keys(localStorage).find(key => key.startsWith('oidc.user:'));
+    const oidcUser = oidcKey ? JSON.parse(localStorage.getItem(oidcKey) || '{}') : null;
+    const profile = oidcUser?.profile || parsedSession?.profile || parsedSession || {};
+
+    return {
+      sessionId: parsedSession?.session?.id || parsedSession?.sessionId || clientContext.sessionId,
+      userId: profile.sub || profile.id || parsedSession?.id || parsedSession?.employeeId,
+      userName: profile.name || profile.fullName || parsedSession?.name || parsedSession?.userName,
+      userEmail: profile.email || parsedSession?.email,
+      roles: profile.role || parsedSession?.roles || parsedSession?.role,
+    };
+  } catch {
+    return {};
+  }
+};
+
+const buildMetadata = (): Partial<AuditLogRequestDto> => {
+  const browserInfo = getBrowserInfo();
+  const authUser = getAuthUser();
+
+  return {
+    ...clientContext,
+    ...browserInfo,
+    ...authUser,
+    traceId: createTraceId(),
+    sessionId: authUser.sessionId || clientContext.sessionId,
+    path: window.location.pathname,
+    routeTitle: document.title,
+    referrer: document.referrer || undefined,
+    locationHref: window.location.href,
+    locationOrigin: window.location.origin,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    viewport: `${window.innerWidth}x${window.innerHeight}`,
+    screen: `${window.screen.width}x${window.screen.height}`,
+    metadata: {
+      devicePixelRatio: window.devicePixelRatio,
+      online: navigator.onLine,
+      roles: authUser.roles,
+      contextCaptured: clientContext.metadata?.capturedAt,
+    },
+  };
+};
+
+const maskInputValue = (target: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement) => {
+  const inputType = target instanceof HTMLInputElement ? target.type : '';
+  const inputName = target.getAttribute('name') || target.getAttribute('id') || '';
+
+  if (inputType === 'password' || SENSITIVE_KEY_PATTERN.test(inputName)) return '[MASKED]';
+  return String(target.value || '').slice(0, 80);
+};
+
+const loadClientContext = async () => {
+  if (clientContextLoaded || !originalFetchRef) return;
+  clientContextLoaded = true;
+
+  try {
+    const response = await originalFetchRef('/api/audit/client-context', { credentials: 'include' });
+    const payload = await response.json();
+    Object.assign(clientContext, payload?.context || {});
+  } catch {
+    // Context enrichment is best-effort; the audit log still records browser/session data.
+  }
+
+  try {
+    const permissionStatus = await navigator.permissions?.query({ name: 'geolocation' as PermissionName });
+    if (permissionStatus?.state === 'granted') {
+      navigator.geolocation.getCurrentPosition(position => {
+        clientContext.geoLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        };
+      });
+    }
+  } catch {
+    // Do not prompt the user for location just to enrich audit metadata.
+  }
+};
+
 export const logAction = (action: string, details: Partial<AuditLog>) => {
-  const newLog = auditService.logAction({
+  if (shouldSkipAudit(details.path || window.location.pathname)) return;
+
+  auditService.logAction({
+    ...buildMetadata(),
+    ...details,
     action,
-    element: details.element,
-    path: details.path || (typeof window !== 'undefined' ? window.location.pathname : '/'),
-    text: details.text,
-    value: details.value,
-    method: details.method,
-    url: details.url,
-    status: details.status,
-    durationMs: details.durationMs,
-    requestBody: details.requestBody,
-    responseBody: details.responseBody,
+    path: details.path || window.location.pathname,
+    requestBody: sanitizeValue('requestBody', details.requestBody),
+    responseBody: sanitizeValue('responseBody', details.responseBody),
   });
-  console.log('[Audit Log]:', newLog);
 };
 
 export const initAuditLogger = () => {
-  // Click handler
-  const handleClick = (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
+  const handleClick = (event: MouseEvent) => {
+    if (shouldSkipAudit()) return;
+
+    const target = event.target as HTMLElement;
     const closestButton = target.closest('button');
     const closestLink = target.closest('a');
-    const closestInput = target.closest('input');
+    const closestInput = target.closest('input, textarea, select');
 
-    let element = 'Element';
-    let text = target.innerText?.trim().substring(0, 50);
+    let element = target.tagName || 'Element';
+    let text = target.innerText?.trim().slice(0, 80);
 
     if (closestButton) {
       element = 'Button';
-      text = closestButton.innerText || closestButton.getAttribute('aria-label') || 'Icon Button';
+      text = closestButton.innerText?.trim() || closestButton.getAttribute('aria-label') || closestButton.title || 'Icon Button';
     } else if (closestLink) {
       element = 'Link';
-      text = closestLink.innerText || closestLink.getAttribute('href') || 'Link';
+      text = closestLink.innerText?.trim() || closestLink.getAttribute('href') || 'Link';
     } else if (closestInput) {
-      element = 'Input';
-      text = closestInput.getAttribute('placeholder') || closestInput.name || 'Input';
+      element = closestInput.tagName;
+      text = closestInput.getAttribute('placeholder') || closestInput.getAttribute('name') || closestInput.id || 'Input';
     }
 
-    logAction('CLICK', { element, text });
+    logAction('UI_CLICK', { element, text });
   };
 
-  // Change handler
-  const handleInput = (e: Event) => {
-    const target = e.target as HTMLInputElement;
-    if (target.type === 'password') return; // Don't log passwords
-    
-    if (e.type === 'change') {
-      logAction('CHANGE', { 
-        element: 'Input', 
-        text: target.name || target.placeholder,
-        value: target.value.substring(0, 50) 
-      });
-    }
+  const handleInput = (event: Event) => {
+    if (shouldSkipAudit() || event.type !== 'change') return;
+
+    const target = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+    if (!target || !('value' in target)) return;
+
+    logAction('UI_CHANGE', {
+      element: target.tagName,
+      text: target.getAttribute('name') || target.getAttribute('placeholder') || target.id || 'Input',
+      value: maskInputValue(target),
+    });
   };
 
-  // Global Fetch Interceptor for API Request & Response Logging
-  const originalFetch = typeof window !== 'undefined' ? window.fetch : null;
-  
-  if (originalFetch) {
+  originalFetchRef = typeof window !== 'undefined' ? window.fetch : null;
+  void loadClientContext();
+
+  if (originalFetchRef) {
     const interceptedFetch = async function (...args: Parameters<typeof fetch>) {
       const startTime = performance.now();
-      let url = typeof args[0] === 'string' ? args[0] : (args[0] instanceof Request ? args[0].url : String(args[0]));
-      let method = 'GET';
-      let reqBody: any = undefined;
+      const input = args[0];
+      const init = args[1];
+      const request = input instanceof Request ? input : null;
+      const url = typeof input === 'string' ? input : request?.url || String(input);
+      const method = (init?.method || request?.method || 'GET').toUpperCase();
+      const requestBody = parseBody(init?.body || null);
 
-      if (args[1]) {
-        if (args[1].method) method = args[1].method.toUpperCase();
-        if (args[1].body) {
-          try {
-            reqBody = typeof args[1].body === 'string' ? JSON.parse(args[1].body) : args[1].body;
-          } catch {
-            reqBody = String(args[1].body);
-          }
-        }
-      } else if (args[0] instanceof Request) {
-        method = args[0].method.toUpperCase();
+      if (shouldSkipFetchAudit(url)) {
+        return originalFetchRef!.apply(window, args);
       }
 
       try {
-        const response = await originalFetch.apply(window, args);
+        const response = await originalFetchRef!.apply(window, args);
         const durationMs = Math.round(performance.now() - startTime);
+        let responseBody: any;
 
-        let respBody: any = undefined;
         try {
-          const cloned = response.clone();
-          respBody = await cloned.json();
+          responseBody = sanitizeValue('responseBody', await response.clone().json());
         } catch {
-          // Not JSON or empty body
+          responseBody = undefined;
         }
 
-        auditService.logAction({
-          action: `API_${method}`,
+        logAction(`API_${method}`, {
           element: `HTTP ${response.status}`,
-          path: typeof window !== 'undefined' ? window.location.pathname : '/',
           text: `${method} ${url}`,
           value: `Status: ${response.status} | Duration: ${durationMs}ms`,
           method,
           url,
           status: response.status,
           durationMs,
-          requestBody: reqBody,
-          responseBody: respBody,
+          requestBody,
+          responseBody,
         });
 
         return response;
-      } catch (err: any) {
+      } catch (error: any) {
         const durationMs = Math.round(performance.now() - startTime);
-        auditService.logAction({
-          action: `API_${method}_ERROR`,
-          element: 'HTTP ERR',
-          path: typeof window !== 'undefined' ? window.location.pathname : '/',
+        logAction(`API_${method}_ERROR`, {
+          element: 'HTTP ERROR',
           text: `${method} ${url}`,
-          value: `Error: ${err.message || 'Network Failed'} (${durationMs}ms)`,
+          value: `Error: ${error?.message || 'Network Failed'} (${durationMs}ms)`,
           method,
           url,
           status: 0,
           durationMs,
-          requestBody: reqBody,
-          responseBody: { error: err.message || 'Network Failure' },
+          requestBody,
+          responseBody: { error: error?.message || 'Network Failure' },
         });
-        throw err;
+        throw error;
       }
     };
 
-    const patchFetch = (newFetch: any) => {
-      try {
-        (window as any).fetch = newFetch;
-      } catch {
-        try {
-          Object.defineProperty(window, 'fetch', {
-            value: newFetch,
-            writable: true,
-            configurable: true,
-          });
-        } catch {
-          try {
-            Object.defineProperty(Window.prototype, 'fetch', {
-              value: newFetch,
-              writable: true,
-              configurable: true,
-            });
-          } catch (e) {
-            console.warn('[AuditLogger] Could not patch fetch:', e);
-          }
-        }
-      }
-    };
-
-    patchFetch(interceptedFetch);
-
-    document.addEventListener('click', handleClick, true);
-    document.addEventListener('change', handleInput, true);
-
-    return () => {
-      patchFetch(originalFetch);
-      document.removeEventListener('click', handleClick, true);
-      document.removeEventListener('change', handleInput, true);
-    };
+    window.fetch = interceptedFetch;
   }
 
   document.addEventListener('click', handleClick, true);
   document.addEventListener('change', handleInput, true);
 
   return () => {
+    if (originalFetchRef) window.fetch = originalFetchRef;
     document.removeEventListener('click', handleClick, true);
     document.removeEventListener('change', handleInput, true);
   };
 };
 
-export const getAuditLogs = (): AuditLog[] => {
-  return auditService.getLogs();
-};
+export const getAuditLogs = (): AuditLog[] => auditService.getLogs();

@@ -1,27 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider, theme, App as AntdApp } from 'antd';
+import { ConfigProvider, theme, App as AntdApp, Spin } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import { AuthProvider, useAuth } from 'react-oidc-context';
 import { oidcConfig, extractOidcUser } from './services/oidcConfig';
-import DashboardLayout from './layouts/DashboardLayout';
-import Dashboard from './pages/Dashboard';
-import Orders from './pages/Orders';
-import Products from './pages/Products';
-import Customers from './pages/Customers';
-import Promotions from './pages/Promotions';
-import Forms from './pages/Forms';
-import Icons from './pages/Icons';
-import RbacManagement from './pages/RbacManagement';
-import AuditLogs from './pages/AuditLogs';
-import Login from './pages/Login';
-import PublicVATRegistration from './pages/PublicVATRegistration';
-import VatConfig from './pages/VatConfig';
 import { Error401, Error403, Error404, Error500, Error503, Maintenance, Upgrading } from './pages/error/ErrorPages';
 import { initAuditLogger } from './utils/auditLogger';
-import { PRESET_USERS } from './utils/rbacPresets';
+import { TOKEN_STORAGE_KEY } from './services/authStorage';
+import { clearAppSession, createAppSession } from './services/appSession';
 
-const AUTH_KEY = '@@WEB_POS_PORTAL';
+const DashboardLayout = React.lazy(() => import('./layouts/DashboardLayout'));
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Orders = React.lazy(() => import('./pages/Orders'));
+const Products = React.lazy(() => import('./pages/Products'));
+const Customers = React.lazy(() => import('./pages/Customers'));
+const Promotions = React.lazy(() => import('./pages/Promotions'));
+const Forms = React.lazy(() => import('./pages/Forms'));
+const Icons = React.lazy(() => import('./pages/Icons'));
+const RbacManagement = React.lazy(() => import('./pages/RbacManagement'));
+const AuditLogs = React.lazy(() => import('./pages/AuditLogs'));
+const Login = React.lazy(() => import('./pages/Login'));
+const VatConfig = React.lazy(() => import('./pages/VatConfig'));
+
+const REDIRECT_LOCK_KEY = '@@WEB_POS_OIDC_REDIRECTING';
+
+const DEFAULT_ALLOWED_URLS = [
+  '/',
+  '/sales/orders',
+  '/sales/products',
+  '/sales/customers',
+  '/sales/promotions',
+  '/system/rbac',
+  '/system/vat-config',
+  '/system/audit-logs',
+  '/system/forms',
+  '/system/icons',
+];
+
+const DEFAULT_BUTTON_PERMISSIONS = [
+  'CREATE',
+  'UPDATE',
+  'DELETE',
+  'EXPORT',
+  'IMPORT',
+  'VIEW_FULL_PRICE',
+  'AUDIT_LOG_VIEW',
+];
 
 export interface UserSession {
   name: string;
@@ -34,98 +58,79 @@ export interface UserSession {
   isExpired?: boolean;
 }
 
-function OidcSync({ setUser }: { setUser: React.Dispatch<React.SetStateAction<UserSession>> }) {
-  const auth = useAuth();
+function FullScreenLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 text-slate-700">
+      <div className="flex items-center gap-3 text-sm font-medium text-slate-700">
+        <Spin size="small" />
+        <span>Đang điều hướng xác thực SSO...</span>
+      </div>
+    </div>
+  );
+}
 
-  useEffect(() => {
-    if (auth.isAuthenticated && auth.user) {
-      const mapped = extractOidcUser(auth.user);
-      if (mapped) {
-        const fullUser: UserSession = {
-          name: mapped.name,
-          email: mapped.email,
-          role: mapped.role,
-          roles: mapped.roles,
-          allowedUrls: [
-            '/',
-            '/sales/orders',
-            '/sales/products',
-            '/sales/customers',
-            '/sales/promotions',
-            '/system/rbac',
-            '/system/vat-config',
-            '/system/audit-logs',
-            '/system/forms',
-            '/system/icons'
-          ],
-          buttonPermissions: ['CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'IMPORT', 'VIEW_FULL_PRICE', 'AUDIT_LOG_VIEW'],
-          token: mapped.token,
-          isExpired: false
-        };
-        setUser(fullUser);
-        localStorage.setItem(AUTH_KEY, JSON.stringify(fullUser));
-      }
-    }
-  }, [auth.isAuthenticated, auth.user, setUser]);
+function buildUserSession(authUser: ReturnType<typeof extractOidcUser>): UserSession | null {
+  if (!authUser) return null;
 
-  return null;
+  return {
+    name: authUser.name,
+    email: authUser.email,
+    role: authUser.role,
+    roles: authUser.roles,
+    allowedUrls: DEFAULT_ALLOWED_URLS,
+    buttonPermissions: DEFAULT_BUTTON_PERMISSIONS,
+    token: authUser.token,
+    isExpired: false,
+  };
 }
 
 function AppContent({ themeMode, setThemeMode, layout, setLayout }: any) {
   const auth = useAuth();
-  const [user, setUser] = useState<UserSession | null>(() => {
-    try {
-      const saved = localStorage.getItem(AUTH_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.name) return parsed;
-      }
-    } catch {
-      // ignore
-    }
-    // If auth session exists in localStorage or preset, load it, otherwise null
-    return null;
-  });
+
+  const user = useMemo(() => {
+    if (!auth.isAuthenticated || !auth.user) return null;
+    return buildUserSession(extractOidcUser(auth.user));
+  }, [auth.isAuthenticated, auth.user]);
 
   useEffect(() => {
     const cleanup = initAuditLogger();
     return cleanup;
   }, []);
 
-  const handleLogin = async (usePopup = false) => {
+  useEffect(() => {
+    if (auth.user?.access_token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, auth.user.access_token);
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('@@WEB_POS_PORTAL');
+      createAppSession(auth.user).catch((err) => {
+        console.warn('Create app session error:', err);
+      });
+    } else {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  }, [auth.user?.access_token]);
+
+  const handleLogout = async () => {
+    sessionStorage.removeItem(REDIRECT_LOCK_KEY);
+    await clearAppSession();
+
     try {
-      if (usePopup) {
-        await auth.signinPopup();
-      } else {
-        await auth.signinRedirect();
-      }
+      await auth.signoutRedirect({
+        id_token_hint: auth.user?.id_token,
+        post_logout_redirect_uri:
+          import.meta.env.VITE_OIDC_POST_LOGOUT_REDIRECT_URI ||
+          `${window.location.origin}/signout-callback-oidc`,
+      });
     } catch (err) {
-      console.error('OIDC login trigger error:', err);
-      const authorityUrl = import.meta.env.VITE_OIDC_AUTHORITY || 'https://identityserver.bitisgroup.vn';
-      const clientId = import.meta.env.VITE_OIDC_CLIENT_ID || 'sso_portal_v2_web_client_client_id_prod';
-      const redirectUri = import.meta.env.VITE_OIDC_REDIRECT_URI || `${window.location.origin}/signin-oidc`;
-      const scope = import.meta.env.VITE_OIDC_SCOPE || 'openid email profile roles';
-      window.location.href = `${authorityUrl}/connect/authorize?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}`;
+      console.warn('OIDC signout error:', err);
+      await auth.removeUser();
+      window.location.replace('/login');
     }
   };
 
-  const handleMockLogin = (sessionData: UserSession) => {
-    setUser(sessionData);
-    localStorage.setItem(AUTH_KEY, JSON.stringify(sessionData));
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem(AUTH_KEY);
-    setUser(null);
-    if (auth.isAuthenticated) {
-      try {
-        auth.removeUser();
-        auth.signoutRedirect();
-      } catch (e) {
-        console.warn('OIDC signout error:', e);
-      }
-    }
-  };
+  if (auth.isLoading || auth.activeNavigator) {
+    return <FullScreenLoading />;
+  }
 
   if (user?.isExpired) {
     return (
@@ -139,56 +144,58 @@ function AppContent({ themeMode, setThemeMode, layout, setLayout }: any) {
 
   return (
     <Router>
-      <OidcSync setUser={setUser} />
-      <Routes>
-        <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login onLogin={handleLogin} onMockLogin={handleMockLogin} />} />
-        <Route path="/signin-oidc" element={<Navigate to="/" replace />} />
-        <Route path="/signout-callback-oidc" element={<Navigate to="/login" replace />} />
-        <Route path="/rp" element={<PublicVATRegistration />} />
-        
-        {/* Error Pages outside layout if needed, or inside */}
-        <Route path="/401" element={<Error401 />} />
-        <Route path="/403" element={<Error403 />} />
-        <Route path="/500" element={<Error500 />} />
-        <Route path="/503" element={<Error503 />} />
-        <Route path="/maintenance" element={<Maintenance />} />
-        <Route path="/upgrading" element={<Upgrading />} />
+      <React.Suspense fallback={<FullScreenLoading />}>
+        <Routes>
+          <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+          <Route path="/signin-oidc" element={<FullScreenLoading />} />
+          <Route path="/signout-callback-oidc" element={<Navigate to="/login" replace />} />
 
-        <Route path="/" element={
-          user ? (
-            <DashboardLayout 
-              user={user} 
-              onLogout={handleLogout} 
-              themeMode={themeMode} 
-              setThemeMode={setThemeMode}
-              layout={layout}
-              setLayout={setLayout}
-            />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }>
-          <Route index element={<Dashboard />} />
-          <Route path="sales">
-            <Route path="orders" element={<Orders />} />
-            <Route path="orders/detail/:site/:receipt" element={<Orders />} />
-            <Route path="orders/detail/:site" element={<Orders />} />
-            <Route path="orders/detail/*" element={<Orders />} />
-            <Route path="products" element={<Products />} />
-            <Route path="customers" element={<Customers />} />
-            <Route path="promotions" element={<Promotions />} />
+          <Route path="/401" element={<Error401 />} />
+          <Route path="/403" element={<Error403 />} />
+          <Route path="/500" element={<Error500 />} />
+          <Route path="/503" element={<Error503 />} />
+          <Route path="/maintenance" element={<Maintenance />} />
+          <Route path="/upgrading" element={<Upgrading />} />
+
+          <Route
+            path="/"
+            element={
+              user ? (
+                <DashboardLayout
+                  user={user}
+                  onLogout={handleLogout}
+                  themeMode={themeMode}
+                  setThemeMode={setThemeMode}
+                  layout={layout}
+                  setLayout={setLayout}
+                />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="sales">
+              <Route path="orders" element={<Orders />} />
+              <Route path="orders/detail/:site/:receipt" element={<Orders />} />
+              <Route path="orders/detail/:site" element={<Orders />} />
+              <Route path="orders/detail/*" element={<Orders />} />
+              <Route path="products" element={<Products />} />
+              <Route path="customers" element={<Customers />} />
+              <Route path="promotions" element={<Promotions />} />
+            </Route>
+            <Route path="system">
+              <Route path="rbac" element={<RbacManagement />} />
+              <Route path="vat-config" element={<VatConfig />} />
+              <Route path="audit-logs" element={<AuditLogs />} />
+              <Route path="common-forms" element={<Navigate to="/system/forms" replace />} />
+              <Route path="forms" element={<Forms />} />
+              <Route path="icons" element={<Icons />} />
+            </Route>
+            <Route path="*" element={<Error404 />} />
           </Route>
-          <Route path="system">
-            <Route path="rbac" element={<RbacManagement />} />
-            <Route path="vat-config" element={<VatConfig />} />
-            <Route path="audit-logs" element={<AuditLogs />} />
-            <Route path="common-forms" element={<Navigate to="/system/forms" replace />} />
-            <Route path="forms" element={<Forms />} />
-            <Route path="icons" element={<Icons />} />
-          </Route>
-          <Route path="*" element={<Error404 />} />
-        </Route>
-      </Routes>
+        </Routes>
+      </React.Suspense>
     </Router>
   );
 }
@@ -212,10 +219,19 @@ class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { 
       return (
         <div style={{ padding: 24, textAlign: 'center', fontFamily: 'sans-serif' }}>
           <h2 style={{ color: '#ff4d4f' }}>Đã xảy ra lỗi hệ thống</h2>
-          <p style={{ color: '#595959' }}>{this.state.error?.message || 'Vui lòng làm mới trang hoặc thử lại sau.'}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            style={{ padding: '8px 16px', backgroundColor: '#1677ff', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}
+          <p style={{ color: '#595959' }}>
+            {this.state.error?.message || 'Vui lòng làm mới trang hoặc thử lại sau.'}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#1677ff',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 4,
+              cursor: 'pointer',
+            }}
           >
             Làm mới trang
           </button>
@@ -234,7 +250,9 @@ export default function App() {
     return (localStorage.getItem('layout') as 'sidebar' | 'top') || 'sidebar';
   });
 
-  const isDark = themeMode === 'dark' || (themeMode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const isDark =
+    themeMode === 'dark' ||
+    (themeMode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   useEffect(() => {
     localStorage.setItem('themeMode', themeMode);
@@ -250,13 +268,29 @@ export default function App() {
   }, [layout]);
 
   const onSigninCallback = () => {
-    if (typeof window !== 'undefined') {
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
+    sessionStorage.removeItem(REDIRECT_LOCK_KEY);
+    window.history.replaceState({}, document.title, '/');
+  };
+
+  const onSignoutCallback = async () => {
+    await clearAppSession();
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('@@WEB_POS_PORTAL');
+    sessionStorage.removeItem(REDIRECT_LOCK_KEY);
+    window.history.replaceState({}, document.title, '/login');
   };
 
   return (
-    <AuthProvider {...oidcConfig} onSigninCallback={onSigninCallback}>
+    <AuthProvider
+      {...oidcConfig}
+      onSigninCallback={onSigninCallback}
+      matchSignoutCallback={(settings) => {
+        const postLogoutRedirectUri = settings.post_logout_redirect_uri;
+        return Boolean(postLogoutRedirectUri) && window.location.href.startsWith(postLogoutRedirectUri);
+      }}
+      onSignoutCallback={onSignoutCallback}
+    >
       <ConfigProvider
         locale={viVN}
         theme={{
@@ -269,7 +303,12 @@ export default function App() {
       >
         <AntdApp>
           <AppErrorBoundary>
-            <AppContent themeMode={themeMode} setThemeMode={setThemeMode} layout={layout} setLayout={setLayout} />
+            <AppContent
+              themeMode={themeMode}
+              setThemeMode={setThemeMode}
+              layout={layout}
+              setLayout={setLayout}
+            />
           </AppErrorBoundary>
         </AntdApp>
       </ConfigProvider>

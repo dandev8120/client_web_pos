@@ -136,18 +136,21 @@ export const Order3D: React.FC = () => {
         <ellipse cx="50" cy="80" rx="32" ry="8" fill="#e2e8f0" />
 
         {/* Glowing concentric circle rings under box */}
-        <motion.ellipse 
-          cx="50" 
-          cy="78" 
-          rx="26" 
-          ry="6" 
-          fill="none" 
-          stroke="#60a5fa" 
-          strokeWidth="1.5" 
-          opacity={isHovered ? 0.8 : 0.3}
-          animate={{ rx: isHovered ? [24, 28, 24] : 24, ry: isHovered ? [5.5, 7, 5.5] : 5.5 }}
+        <motion.g
+          style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+          animate={{ scale: isHovered ? [0.95, 1.08, 0.95] : 0.95, opacity: isHovered ? 0.8 : 0.3 }}
           transition={{ repeat: Infinity, duration: 2 }}
-        />
+        >
+          <ellipse
+            cx="50"
+            cy="78"
+            rx="26"
+            ry="6"
+            fill="none"
+            stroke="#60a5fa"
+            strokeWidth="1.5"
+          />
+        </motion.g>
 
         {/* Isometric Box Base Block */}
         <g>
@@ -219,17 +222,21 @@ export const User3D: React.FC = () => {
         <ellipse cx="50" cy="78" rx="30" ry="7" fill="#f1f5f9" />
 
         {/* Circular Ring Platform */}
-        <motion.ellipse 
-          cx="50" 
-          cy="77" 
-          rx="25" 
-          ry="6" 
-          fill="none" 
-          stroke="#10b981" 
-          strokeWidth="3" 
-          animate={{ stroke: isHovered ? '#10b981' : '#34d399', rx: isHovered ? 27 : 25 }}
+        <motion.g
+          style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+          animate={{ scale: isHovered ? 1.08 : 1 }}
           transition={{ duration: 0.3 }}
-        />
+        >
+          <ellipse
+            cx="50"
+            cy="77"
+            rx="25"
+            ry="6"
+            fill="none"
+            stroke={isHovered ? '#10b981' : '#34d399'}
+            strokeWidth="3"
+          />
+        </motion.g>
 
         {/* Center Main User Hologram */}
         <g>
@@ -362,19 +369,23 @@ export const Product3D: React.FC = () => {
         </motion.g>
 
         {/* Orbiting Halo light ring */}
-        <motion.ellipse 
-          cx="50" 
-          cy="42" 
-          rx="32" 
-          ry="11" 
-          fill="none" 
-          stroke="#f87171" 
-          strokeWidth="1.5" 
-          opacity={isHovered ? 0.9 : 0.3}
-          strokeDasharray="4,4"
+        <motion.g
+          style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
           animate={{ rotate: isHovered ? 360 : 0 }}
           transition={{ repeat: Infinity, duration: 8, ease: 'linear' }}
-        />
+        >
+          <ellipse
+            cx="50"
+            cy="42"
+            rx="32"
+            ry="11"
+            fill="none"
+            stroke="#f87171"
+            strokeWidth="1.5"
+            opacity={isHovered ? 0.9 : 0.3}
+            strokeDasharray="4,4"
+          />
+        </motion.g>
       </svg>
     </div>
   );
@@ -427,18 +438,21 @@ export const OrdersList3D: React.FC<{ externalHover?: boolean }> = ({ externalHo
         </defs>
         <ellipse cx="50" cy="80" rx="30" ry="7" fill="#cbd5e1" opacity="0.5" />
         {/* Animated Ripple Circles on Base */}
-        <motion.ellipse
-          cx="50"
-          cy="80"
-          rx={isHovered ? 34 : 30}
-          ry={isHovered ? 9 : 7}
-          fill="none"
-          stroke="#f97316"
-          strokeWidth="1.5"
-          opacity={isHovered ? 0.6 : 0}
+        <motion.g
+          style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
           animate={{ scale: isHovered ? [1, 1.25, 1] : 1, opacity: isHovered ? [0.6, 0, 0.6] : 0 }}
           transition={{ repeat: Infinity, duration: 1.8 }}
-        />
+        >
+          <ellipse
+            cx="50"
+            cy="80"
+            rx="30"
+            ry="7"
+            fill="none"
+            stroke="#f97316"
+            strokeWidth="1.5"
+          />
+        </motion.g>
         <motion.g animate={{ y: isHovered ? -8 : 0, rotate: isHovered ? -3 : 0 }} transition={{ type: 'spring', stiffness: 200, damping: 10 }}>
           {/* Back Paper */}
           <path d="M 32,25 L 68,25 L 68,65 L 32,65 Z" fill="url(#paperGrad)" stroke="#f97316" strokeWidth="1.5" transform="rotate(-5 50 45)" />

@@ -75,6 +75,9 @@
         "changeAmount": 0,
         "cardAmount": 0,
         "voucherAmount": 0,
+        "totalItemAmount": 7360440,
+        "totalDiscountAmount": 1571560,
+        "totalVatAmount": 736044,
         "totalAmount": 113000,
         "totalAmountWithTaxInWords": "Một trăm mười ba nghìn đồng chẵn"
       },
@@ -191,6 +194,9 @@
         "changeAmount": 0,
         "cardAmount": 48000,
         "voucherAmount": 100000,
+        "totalItemAmount": 7360440,
+        "totalDiscountAmount": 1571560,
+        "totalVatAmount": 736044,
         "totalAmount": 148000,
         "totalAmountWithTaxInWords": "Một trăm bốn mươi tám nghìn đồng chẵn"
       },
@@ -301,6 +307,9 @@
         "changeAmount": 0,
         "cardAmount": 0,
         "voucherAmount": 0,
+        "totalItemAmount": 7360440,
+        "totalDiscountAmount": 1571560,
+        "totalVatAmount": 736044,
         "totalAmount": 840000,
         "totalAmountWithTaxInWords": "Tám trăm bốn mươi nghìn đồng chẵn"
       },

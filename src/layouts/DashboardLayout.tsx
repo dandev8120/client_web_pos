@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, theme, Badge, Input, Popover, Divider, AutoComplete } from 'antd';
+﻿import React, { useState, useMemo } from 'react';
+import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, theme, Badge, Input, Popover, Divider, AutoComplete, Modal } from 'antd';
 import {
   DesktopOutlined,
   FileOutlined,
@@ -16,6 +16,9 @@ import {
   SearchOutlined,
   MessageOutlined,
   SettingOutlined,
+  KeyOutlined,
+  IdcardOutlined,
+  MailOutlined,
   FormatPainterOutlined,
   LayoutOutlined,
   GlobalOutlined,
@@ -40,6 +43,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { canAccessUrl } from '../utils/rbacPresets';
 import { Error403 } from '../pages/error/ErrorPages';
 import appMetadata from '../../metadata.json';
+import { APP_VERSION } from '../generated/version';
 
 const { Header, Content, Sider, Footer } = Layout;
 const { Title, Text } = Typography;
@@ -53,6 +57,30 @@ interface DashboardLayoutProps {
   setLayout: (layout: 'sidebar' | 'top') => void;
 }
 
+function safeJsonParse(value: string | null) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function readOidcProfile() {
+  try {
+    const oidcKey = Object.keys(localStorage).find(key => key.startsWith('oidc.user:'));
+    const oidcUser = safeJsonParse(oidcKey ? localStorage.getItem(oidcKey) : null);
+    return oidcUser?.profile || {};
+  } catch {
+    return {};
+  }
+}
+
+function firstText(...values: any[]) {
+  const found = values.find(value => value !== undefined && value !== null && String(value).trim() !== '');
+  return found !== undefined ? String(found).trim() : '';
+}
+
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ 
   user, 
   onLogout, 
@@ -64,6 +92,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const [collapsed, setCollapsed] = useState(true);
   const [mobileMenuVisible, setMobileMenuVisible] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [userInfoVisible, setUserInfoVisible] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [searchValue, setSearchValue] = useState('');
   const searchInputRef = React.useRef<any>(null);
@@ -107,6 +136,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   const handleLogout = () => {
     onLogout();
+  };
+
+  const openSsoAccountManagement = () => {
+    const authority = (import.meta.env.VITE_OIDC_AUTHORITY || 'https://identityserver.bitisgroup.vn').replace(/\/+$/, '');
+    const accountPath = import.meta.env.VITE_OIDC_ACCOUNT_MANAGEMENT_PATH || '/manage';
+    window.location.assign(`${authority}${accountPath.startsWith('/') ? accountPath : `/${accountPath}`}`);
+  };
+
+  const openSsoChangePassword = () => {
+    const authority = (import.meta.env.VITE_OIDC_AUTHORITY || 'https://identityserver.bitisgroup.vn').replace(/\/+$/, '');
+    const returnUrl = `${window.location.origin}${location.pathname}${location.search}${location.hash}`;
+    const targetUrl = new URL('/manage/changepassword', `${authority}/`);
+    targetUrl.searchParams.set('returnUrl', returnUrl);
+    window.location.assign(targetUrl.toString());
   };
 
   const changeLanguage = (lng: string) => {
@@ -242,6 +285,39 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   }, [activeUser]);
 
   const userAllowedUrls = activeUser?.allowedUrls;
+
+  const displayUser = useMemo(() => {
+    const profile = readOidcProfile();
+    const roles = Array.isArray(user?.roles) ? user.roles : Array.isArray(activeUser?.roles) ? activeUser.roles : [];
+    const role = firstText(user?.role, activeUser?.role, profile.role, roles[0]);
+    const code = firstText(
+      profile.employeeCode,
+      profile.employee_code,
+      profile.employeeId,
+      profile.employee_id,
+      activeUser?.employeeCode,
+      activeUser?.employeeId,
+      user?.employeeCode,
+      user?.employeeId,
+      profile.sub,
+      activeUser?.id,
+      user?.id
+    );
+
+    return {
+      name: firstText(profile.name, profile.preferred_username, profile.nickname, user?.name, activeUser?.name, profile.email, 'OIDC User'),
+      preferredUsername: firstText(profile.preferred_username, user?.preferred_username, activeUser?.preferred_username, user?.username, activeUser?.username),
+      email: firstText(profile.email, user?.email, activeUser?.email),
+      code,
+      role,
+    };
+  }, [activeUser, user]);
+  const displayUserMeta = firstText(displayUser.email, displayUser.code, displayUser.role);
+  const userProfileRows = useMemo(() => [
+    { key: 'name', label: 'Họ tên', value: displayUser.name, icon: <UserOutlined /> },
+    { key: 'preferred_username', label: 'Mã nhân viên', value: displayUser.preferredUsername || 'Chưa có', icon: <IdcardOutlined /> },
+    { key: 'email', label: 'Email', value: displayUser.email || 'Chưa có', icon: <MailOutlined /> },
+  ], [displayUser]);
 
   const filteredMenuItems = useMemo(() => {
     const filterTree = (items: any[]): any[] => {
@@ -459,10 +535,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     {
       key: 'user-info',
       label: (
-        <div className="py-1 px-1 border-b border-slate-100 dark:border-slate-800 max-w-[220px]">
-          <div className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate">{activeUser?.name || user?.name || 'Nguyễn Văn A'}</div>
+        <div className="py-1 px-1 border-b border-slate-100 dark:border-slate-800 max-w-[220px] cursor-pointer">
+          <div className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate">{displayUser.name}</div>
           <div className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5 truncate">
-            Mã NV: <span className="font-semibold text-blue-600 dark:text-blue-400">{activeUser?.employeeCode || activeUser?.employeeId || activeUser?.id || 'NV88902'}</span>
+            <span className="font-semibold text-blue-600 dark:text-blue-400">{displayUserMeta}</span>
           </div>
         </div>
       ),
@@ -471,11 +547,33 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       key: 'account-management',
       label: 'Quản lý tài khoản',
       icon: <UserOutlined />,
-      onClick: () => setSettingsVisible(true)
+    },
+    {
+      key: 'change-password',
+      label: 'Đổi mật khẩu',
+      icon: <KeyOutlined />,
     },
     { type: 'divider' },
-    { key: 'logout', label: 'Đăng xuất', icon: <LogoutOutlined />, danger: true, onClick: handleLogout },
+    { key: 'logout', label: 'Đăng xuất', icon: <LogoutOutlined />, danger: true },
   ];
+
+  const handleUserMenuClick = ({ key }: { key: string }) => {
+    if (key === 'user-info') {
+      setUserInfoVisible(true);
+      return;
+    }
+    if (key === 'account-management') {
+      openSsoAccountManagement();
+      return;
+    }
+    if (key === 'change-password') {
+      openSsoChangePassword();
+      return;
+    }
+    if (key === 'logout') {
+      handleLogout();
+    }
+  };
 
   const logoSection = (isCollapsed: boolean, isSidebar: boolean) => {
     const logoUrl = (appMetadata as any)?.logoUrl;
@@ -640,8 +738,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               <div className="flex items-center gap-2.5 min-w-0">
                 <Avatar style={{ backgroundColor: token.colorPrimary }} icon={<UserOutlined />} size="small" />
                 <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{activeUser?.name || user?.name || 'Nguyễn Văn A'}</span>
-                  <span className="text-[10px] text-slate-500 font-mono truncate">Mã NV: {activeUser?.employeeCode || activeUser?.employeeId || activeUser?.id || 'NV88902'}</span>
+                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{displayUser.name}</span>
+                  <span className="text-[10px] text-slate-500 font-mono truncate">{displayUserMeta}</span>
                 </div>
               </div>
 
@@ -784,12 +882,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               </Badge>
             </Popover>
 
-            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
+            <Dropdown menu={{ items: userMenuItems, onClick: handleUserMenuClick }} placement="bottomRight" trigger={['click']}>
               <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', height: 32, padding: '0 4px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', lineHeight: 1.2 }}>
-                  <Typography.Text strong style={{ fontSize: 13, lineHeight: '16px', display: 'block' }}>{activeUser?.name || user?.name || 'Nguyễn Văn A'}</Typography.Text>
+                  <Typography.Text strong style={{ fontSize: 13, lineHeight: '16px', display: 'block' }}>{displayUser.name}</Typography.Text>
                   {!isMobile && (
-                    <Typography.Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace', lineHeight: '14px', display: 'block' }}>Mã NV: {activeUser?.employeeCode || activeUser?.employeeId || activeUser?.id || 'NV88902'}</Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace', lineHeight: '14px', display: 'block' }}>{displayUserMeta}</Typography.Text>
                   )}
                 </div>
               </div>
@@ -805,7 +903,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </Content>
         <Footer style={{ textAlign: 'center', color: token.colorTextSecondary, fontSize: 13 }}>
-          {(appMetadata as any)?.footer || "© 2026 Công ty TNHH Sản Xuất Hàng Tiêu Dùng Bình Tiên (Biti's). Bản quyền thuộc về POS CENTER."}
+          <Space size={8} wrap style={{ justifyContent: 'center' }}>
+            <span>
+              {(appMetadata as any)?.footer || "© 2026 Công ty TNHH Sản Xuất Hàng Tiêu Dùng Bình Tiên (Biti's). Bản quyền thuộc về POS CENTER."}
+            </span>
+            <Tag color="blue" bordered={false} style={{ marginInlineEnd: 0, fontFamily: 'monospace' }}>
+              {APP_VERSION.fullDisplay}
+            </Tag>
+          </Space>
         </Footer>
       </Layout>
 
@@ -865,6 +970,84 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </div>
       </Drawer>
+
+      <Modal
+        title="Thông tin người dùng"
+        open={userInfoVisible}
+        onCancel={() => setUserInfoVisible(false)}
+        footer={null}
+        width={430}
+      >
+        <div style={{ paddingTop: 4 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: 14,
+              marginBottom: 16,
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: 8,
+              background: token.colorFillAlter,
+            }}
+          >
+            <Avatar
+              size={44}
+              style={{
+                background: token.colorPrimary,
+                fontWeight: 700,
+              }}
+            >
+              {(displayUser.name.charAt(0) || 'U').toUpperCase()}
+            </Avatar>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: token.colorText, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {displayUser.name}
+              </div>
+              <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, color: token.colorPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {displayUser.preferredUsername || 'OIDC Profile'}
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: 8,
+              overflow: 'hidden',
+              background: token.colorBgContainer,
+            }}
+          >
+            {userProfileRows.map(item => (
+              <div
+                key={item.key}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '150px minmax(0, 1fr)',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '12px 14px',
+                  borderBottom: item.key === userProfileRows[userProfileRows.length - 1].key ? 'none' : `1px solid ${token.colorBorderSecondary}`,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, color: token.colorTextSecondary, fontSize: 13, fontWeight: 600 }}>
+                  <span style={{ color: token.colorPrimary, lineHeight: 1 }}>
+                  {item.icon}
+                  </span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+                </div>
+                <div style={{ minWidth: 0, color: token.colorText, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {item.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Button type="primary" block style={{ marginTop: 16 }} onClick={() => setUserInfoVisible(false)}>
+            Đóng
+          </Button>
+        </div>
+      </Modal>
     </Layout>
   );
 };

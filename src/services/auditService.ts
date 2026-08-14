@@ -1,4 +1,3 @@
-import seedAuditLogsJson from '../seed/seedAuditLogs.json';
 import { AuditLogRequestDto, AuditLogResponseDto, AuditLogMapper } from '../dtos/AuditLogDto';
 
 const STORAGE_KEY = '@@WEB_POS_AUDIT_LOG';
@@ -9,7 +8,7 @@ export class AuditService {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed.map(item => AuditLogMapper.toResponseDto(item));
         }
       }
@@ -17,9 +16,7 @@ export class AuditService {
       console.warn('Failed to parse cached audit logs', e);
     }
 
-    const seedLogs = seedAuditLogsJson.map(item => AuditLogMapper.toResponseDto(item));
-    this.saveLogs(seedLogs);
-    return seedLogs;
+    return [];
   }
 
   public saveLogs(logs: AuditLogResponseDto[]): void {

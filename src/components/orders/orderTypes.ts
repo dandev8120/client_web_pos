@@ -103,6 +103,12 @@ export interface BackendReceiptTotals {
   voucherAmount?: number | null;
   totalAmount?: number | null;
   totalAmountWithTaxInWords?: string | null;
+  TotalItemAmount?: number | null;
+  TotalDiscountAmount?: number | null;
+  TotalVatAmount?: number | null;
+  totalItemAmount?: number | null;
+  totalDiscountAmount?: number | null;
+  totalVatAmount?: number | null;
 }
 
 export interface BackendPromotions {

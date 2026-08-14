@@ -58,26 +58,26 @@ const WaterRippleBackground: React.FC<{ isHovered: boolean }> = ({ isHovered }) 
         </defs>
         <rect width="100%" height="100%" fill="url(#rippleGrad)" />
 
-        <motion.ellipse
-          cx="255" cy="35" rx="25" ry="20"
-          fill="none" stroke="#f97316" strokeWidth="1.2"
+        <motion.g
+          style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
           animate={{
-            rx: isHovered ? [25, 120, 170] : 25,
-            ry: isHovered ? [20, 95, 130] : 20,
+            scale: isHovered ? [1, 5, 6.8] : 1,
             opacity: isHovered ? [0.8, 0.2, 0] : 0.2,
           }}
           transition={{ duration: 2, repeat: isHovered ? Infinity : 0, ease: 'easeOut' }}
-        />
-        <motion.ellipse
-          cx="255" cy="35" rx="15" ry="12"
-          fill="none" stroke="#ea580c" strokeWidth="1.5"
+        >
+          <ellipse cx="255" cy="35" rx="25" ry="20" fill="none" stroke="#f97316" strokeWidth="1.2" />
+        </motion.g>
+        <motion.g
+          style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
           animate={{
-            rx: isHovered ? [15, 80, 130] : 15,
-            ry: isHovered ? [12, 65, 100] : 12,
+            scale: isHovered ? [1, 5.3, 8.6] : 1,
             opacity: isHovered ? [0.9, 0.3, 0] : 0.25,
           }}
           transition={{ duration: 2, repeat: isHovered ? Infinity : 0, delay: 0.5, ease: 'easeOut' }}
-        />
+        >
+          <ellipse cx="255" cy="35" rx="15" ry="12" fill="none" stroke="#ea580c" strokeWidth="1.5" />
+        </motion.g>
       </svg>
     </div>
   );
@@ -96,16 +96,15 @@ const RadarGridBackground: React.FC<{ isHovered: boolean }> = ({ isHovered }) =>
         <rect width="100%" height="100%" fill="url(#gridPattern)" />
 
         {/* Scanning Radar Line */}
-        <motion.line
-          x1="0" y1="0" x2="300" y2="0"
-          stroke="#d97706" strokeWidth="1.5" strokeDasharray="4 4"
+        <motion.g
           animate={{
-            y1: isHovered ? [0, 160, 0] : 80,
-            y2: isHovered ? [0, 160, 0] : 80,
+            y: isHovered ? [0, 160, 0] : 80,
             opacity: isHovered ? [0.3, 0.8, 0.3] : 0.2
           }}
           transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-        />
+        >
+          <line x1="0" y1="0" x2="300" y2="0" stroke="#d97706" strokeWidth="1.5" strokeDasharray="4 4" />
+        </motion.g>
 
         {/* Pulse Blip Nodes */}
         <motion.circle

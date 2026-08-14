@@ -1,6 +1,6 @@
 /**
  * POS CENTER - Biti's Retail Platform Multi-Service API Configuration
- * Auto-detects Vite mode (Development vs Production) and environment configuration files (.env.development, .env.production)
+ * Auto-detects Vite mode and environment files under /.env.
  */
 
 export interface AppEnvConfig {

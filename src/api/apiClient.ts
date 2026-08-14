@@ -4,6 +4,7 @@
 
 import { API_CONFIG } from './config';
 import { ApiResponse } from './response';
+import { TOKEN_STORAGE_KEY } from '../services/authStorage';
 
 export class ApiClient {
   private posHost: string;
@@ -25,7 +26,7 @@ export class ApiClient {
       'ngrok-skip-browser-warning': 'true',
     };
 
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -48,6 +49,7 @@ export class ApiClient {
       const response = await fetch(url, {
         method: 'GET',
         headers: this.getHeaders(),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -71,6 +73,7 @@ export class ApiClient {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify(payload),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -91,6 +94,7 @@ export class ApiClient {
         method: 'PUT',
         headers: this.getHeaders(),
         body: JSON.stringify(payload),
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -110,6 +114,7 @@ export class ApiClient {
       const response = await fetch(url, {
         method: 'DELETE',
         headers: this.getHeaders(),
+        credentials: 'include',
       });
 
       if (!response.ok) {
