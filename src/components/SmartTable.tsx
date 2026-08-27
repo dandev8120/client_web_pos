@@ -36,10 +36,11 @@ interface SmartHeaderCellProps extends React.HTMLAttributes<any> {
     onResize: (e: React.SyntheticEvent, { size }: { size: { width: number } }) => void;
     width: number;
     id: string;
+    resizable?: boolean;
 }
   
 const SmartHeaderCell = (props: SmartHeaderCellProps) => {
-  const { onResize, width, id, children, ...restProps } = props;
+  const { onResize, width, id, resizable = true, children, ...restProps } = props;
 
   const {
     attributes,
@@ -54,11 +55,10 @@ const SmartHeaderCell = (props: SmartHeaderCellProps) => {
     ...restProps.style,
     transform: CSS.Translate.toString(transform),
     transition: isDragging ? 'none' : transition,
-    zIndex: isDragging ? 1000 : 1,
-    position: 'relative'
+    ...(isDragging ? { position: 'relative', zIndex: 1000 } : {}),
   };
 
-  if (!width) {
+  if (!width || !resizable) {
     return (
       <th 
         {...restProps} 
@@ -130,10 +130,51 @@ const SortableRow = ({ children, ...props }: SortableRowProps) => {
   );
 };
 
+type SmartTableColumn<T> = ColumnType<T> & {
+  searchable?: boolean;
+  resizable?: boolean;
+  searchFields?: ColumnType<T>['dataIndex'][];
+  searchText?: (record: T) => unknown;
+};
+
+const toSearchableParts = (value: unknown, visited = new WeakSet<object>()): string[] => {
+  if (value === undefined || value === null || typeof value === 'boolean') {
+    return [];
+  }
+
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint') {
+    return [String(value)];
+  }
+
+  if (value instanceof Date) {
+    return [value.toISOString()];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap(item => toSearchableParts(item, visited));
+  }
+
+  if (React.isValidElement(value)) {
+    return toSearchableParts((value.props as { children?: React.ReactNode }).children, visited);
+  }
+
+  if (typeof value === 'object') {
+    if (visited.has(value)) {
+      return [];
+    }
+
+    visited.add(value);
+    return Object.values(value as Record<string, unknown>).flatMap(item => toSearchableParts(item, visited));
+  }
+
+  return [String(value)];
+};
+
 export interface SmartTableProps<T> extends TableProps<T> {
-  columns: (ColumnType<T> & { searchable?: boolean; resizable?: boolean })[];
+  columns: SmartTableColumn<T>[];
   extraActions?: React.ReactNode;
   rowDraggable?: boolean;
+  responsiveExpanded?: boolean;
   onRowDragEnd?: (activeId: string, overId: string) => void;
   selectedRowKeys?: React.Key[];
   onBatchDelete?: (keys: React.Key[]) => void;
@@ -145,6 +186,7 @@ export function SmartTable<T extends { key?: React.Key }>(props: SmartTableProps
     columns: initialColumns, 
     extraActions, 
     rowDraggable, 
+    responsiveExpanded,
     onRowDragEnd,
     selectedRowKeys = [],
     onBatchDelete,
@@ -165,7 +207,7 @@ export function SmartTable<T extends { key?: React.Key }>(props: SmartTableProps
 
   React.useEffect(() => {
     setColumnData(prev => {
-      return initialColumns.map((col, index) => {
+      const nextColumns = initialColumns.map((col, index) => {
         const key = col.key || col.dataIndex?.toString() || `col-${index}`;
         const existing = prev.find(p => p.key === key);
         return {
@@ -175,6 +217,19 @@ export function SmartTable<T extends { key?: React.Key }>(props: SmartTableProps
           width: existing ? existing.width : (col.width || 150),
         };
       });
+
+      const hasSameColumnState = nextColumns.length === prev.length
+        && nextColumns.every((col, index) => {
+          const current = prev[index];
+          return current
+            && current.key === col.key
+            && current.visible === col.visible
+            && current.width === col.width
+            && current.title === col.title
+            && current.dataIndex === col.dataIndex;
+        });
+
+      return hasSameColumnState ? prev : nextColumns;
     });
   }, [initialColumns]);
 
@@ -288,55 +343,83 @@ export function SmartTable<T extends { key?: React.Key }>(props: SmartTableProps
     }
   };
 
-  const getColumnSearchProps = (dataIndex: string, title: string) => ({
-    filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }: any) => (
-      <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
-        <Input
-          placeholder={t('search_col', { title })}
-          value={selectedKeys[0]}
-          onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-          onPressEnter={() => confirm()}
-          style={{ marginBottom: 8, display: 'block' }}
-        />
-        <Space>
-          <Button
-            type="primary"
-            onClick={() => confirm()}
-            icon={<SearchOutlined />}
-            size="small"
-            style={{ width: 90 }}
-          >
-            {t('search')}
-          </Button>
-          <Button onClick={() => clearFilters && clearFilters()} size="small" style={{ width: 90 }}>
-            {t('reset')}
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            onClick={() => {
-              confirm({ closeDropdown: false });
-              setSearchText(selectedKeys[0]);
-              setSearchedColumn(dataIndex);
-            }}
-          >
-            {t('filter')}
-          </Button>
-          <Button type="link" size="small" onClick={() => close()}>
-            {t('close')}
-          </Button>
-        </Space>
-      </div>
-    ),
-    filterIcon: (filtered: boolean) => (
-      <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />
-    ),
-    onFilter: (value: any, record: any) =>
-      record[dataIndex]
-        ?.toString()
-        .toLowerCase()
-        .includes((value as string).toLowerCase()),
-  });
+  const getRecordValue = (record: T, dataIndex: ColumnType<T>['dataIndex']) => {
+    if (dataIndex === undefined || dataIndex === null) return undefined;
+
+    const path = Array.isArray(dataIndex) ? dataIndex : [dataIndex];
+    return path.reduce<any>((current, key) => {
+      if (current === undefined || current === null) return undefined;
+      return current[key as keyof typeof current];
+    }, record);
+  };
+
+  const getColumnSearchProps = (column: SmartTableColumn<T>) => {
+    const dataIndex = column.dataIndex;
+    const title = String(column.title ?? '');
+
+    return {
+      filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }: any) => (
+        <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
+          <Input
+            placeholder={t('search_col', { title })}
+            value={selectedKeys[0]}
+            onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+            onPressEnter={() => confirm()}
+            style={{ marginBottom: 8, display: 'block' }}
+          />
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => confirm()}
+              icon={<SearchOutlined />}
+              size="small"
+              style={{ width: 90 }}
+            >
+              {t('search')}
+            </Button>
+            <Button onClick={() => clearFilters && clearFilters()} size="small" style={{ width: 90 }}>
+              {t('reset')}
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => {
+                confirm({ closeDropdown: false });
+                setSearchText(String(selectedKeys[0] ?? ''));
+                setSearchedColumn(String(dataIndex ?? ''));
+              }}
+            >
+              {t('filter')}
+            </Button>
+            <Button type="link" size="small" onClick={() => close()}>
+              {t('close')}
+            </Button>
+          </Space>
+        </div>
+      ),
+      filterIcon: (filtered: boolean) => (
+        <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />
+      ),
+      onFilter: (value: any, record: T) => {
+        const searchValue = String(value ?? '').trim().toLowerCase();
+        if (!searchValue) return true;
+
+        const recordValue = getRecordValue(record, dataIndex);
+        const fieldValues = column.searchFields?.map(field => getRecordValue(record, field)) ?? [];
+        const customSearchValue = column.searchText?.(record);
+        const renderedValue = column.render
+          ? column.render(recordValue, record, 0)
+          : undefined;
+
+        return [
+          ...toSearchableParts(recordValue),
+          ...fieldValues.flatMap(fieldValue => toSearchableParts(fieldValue)),
+          ...toSearchableParts(customSearchValue),
+          ...toSearchableParts(renderedValue),
+        ].join(' ').toLowerCase().includes(searchValue);
+      },
+    };
+  };
 
   const mergedColumns = useMemo(() => {
     return columnData
@@ -345,19 +428,56 @@ export function SmartTable<T extends { key?: React.Key }>(props: SmartTableProps
         const newCol = { ...col };
         
         if (col.searchable && col.dataIndex) {
-          Object.assign(newCol, getColumnSearchProps(col.dataIndex as string, col.title as string));
+          Object.assign(newCol, getColumnSearchProps(col));
         }
 
         return {
           ...newCol,
-          onHeaderCell: (column: any) => ({
+        onHeaderCell: (column: any) => ({
             width: column.width,
             onResize: handleResize(column.key),
             id: column.key,
+            resizable: column.resizable !== false,
           }),
         };
       });
   }, [columnData]);
+
+  const renderInheritedExpandedCell = (col: ColumnType<T>, record: T, index: number) => {
+    const value = getRecordValue(record, col.dataIndex);
+    const content = col.render
+      ? col.render(value, record, index) as React.ReactNode
+      : value as React.ReactNode;
+
+    return content === undefined || content === null || content === ''
+      ? <span className="text-slate-400 text-xs">N/A</span>
+      : content;
+  };
+
+  const inheritedExpandedRowRender = (record: T, index: number) => (
+    <div className="smart-table-expanded-grid">
+      {mergedColumns.map((col) => (
+        <div className="smart-table-expanded-item" key={String(col.key || col.dataIndex || index)}>
+          <div className="smart-table-expanded-label">
+            {col.title as React.ReactNode}
+          </div>
+          <div className="smart-table-expanded-value">
+            {renderInheritedExpandedCell(col, record, index)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const tableExpandable = responsiveExpanded
+    ? {
+        columnWidth: 44,
+        fixed: 'left' as const,
+        rowExpandable: () => true,
+        ...restProps.expandable,
+        expandedRowRender: restProps.expandable?.expandedRowRender || inheritedExpandedRowRender,
+      }
+    : restProps.expandable;
 
   const components = {
     header: {
@@ -433,6 +553,7 @@ export function SmartTable<T extends { key?: React.Key }>(props: SmartTableProps
           <Table
             {...restProps}
             bordered
+            expandable={tableExpandable}
             locale={{
               emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Không có dữ liệu" />,
               ...restProps.locale,

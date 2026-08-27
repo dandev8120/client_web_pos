@@ -20,6 +20,22 @@ export function cleanSiteCode(rawSite?: any): string {
   return str || '1134';
 }
 
+function toDisplayText(value: unknown): string {
+  if (value === undefined || value === null || value === 'null' || value === 'undefined') {
+    return '';
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(toDisplayText).filter(Boolean).join('/');
+  }
+
+  if (typeof value === 'object') {
+    return '';
+  }
+
+  return String(value).trim();
+}
+
 export class OrderMapper {
   /**
    * Trích xuất danh sách đơn hàng từ bất kỳ định dạng JSON trả về nào từ Backend:
@@ -93,10 +109,10 @@ export class OrderMapper {
     const tcRaw = raw.payment?.transactionCode ?? raw.payment?.TransactionCode ?? raw.transactionCode ?? raw.TransactionCode ?? raw.qrTransactionId;
     const stRaw = raw.payment?.transactionStatus ?? raw.payment?.TransactionStatus ?? raw.transactionStatus ?? raw.TransactionStatus ?? raw.paymentStatus ?? raw.PaymentStatus;
 
-    const pm = (pmRaw && pmRaw !== 'null') ? String(pmRaw) : '';
-    const bc = (bcRaw && bcRaw !== 'null') ? String(bcRaw) : '';
-    const tc = (tcRaw && tcRaw !== 'null' && tcRaw !== 'N/A') ? String(tcRaw) : '';
-    const st = (stRaw && stRaw !== 'null') ? String(stRaw) : '';
+    const pm = toDisplayText(pmRaw);
+    const bc = toDisplayText(bcRaw);
+    const tc = toDisplayText(tcRaw);
+    const st = toDisplayText(stRaw);
 
     if (pm || bc || tc || st) {
       paymentInfo = {
@@ -111,7 +127,7 @@ export class OrderMapper {
       if (tc) qrDetails.push(`TransactionCode: ${tc}`);
       if (st) qrDetails.push(`TransactionStatus: ${st}`);
     } else if (Array.isArray(raw.qrDetails)) {
-      qrDetails = raw.qrDetails.filter(Boolean);
+      qrDetails = raw.qrDetails.map(toDisplayText).filter(Boolean);
     } else if (raw.qrTransactionId && raw.qrTransactionId !== 'N/A') {
       qrDetails = [String(raw.qrTransactionId)];
     }
@@ -316,14 +332,17 @@ export function parsePaymentDetails(record: DataType): {
   hasInfo: boolean;
   rawList: string[];
 } {
-  let pm = record.paymentInfo?.paymentMethod || (record as any).paymentMethod || record.rawJsonb?.paymentMethod || record.rawJsonb?.payment?.paymentMethod || '';
-  let bc = record.paymentInfo?.bankCode || (record as any).bankCode || record.rawJsonb?.bankCode || record.rawJsonb?.payment?.bankCode || '';
-  let tc = record.paymentInfo?.transactionCode || (record as any).transactionCode || record.rawJsonb?.transactionCode || record.rawJsonb?.payment?.transactionCode || '';
-  let st = record.paymentInfo?.transactionStatus || (record as any).transactionStatus || (record as any).paymentStatus || record.rawJsonb?.transactionStatus || record.rawJsonb?.payment?.transactionStatus || '';
+  let pm = toDisplayText(record.paymentInfo?.paymentMethod || (record as any).paymentMethod || record.rawJsonb?.paymentMethod || record.rawJsonb?.payment?.paymentMethod);
+  let bc = toDisplayText(record.paymentInfo?.bankCode || (record as any).bankCode || record.rawJsonb?.bankCode || record.rawJsonb?.payment?.bankCode);
+  let tc = toDisplayText(record.paymentInfo?.transactionCode || (record as any).transactionCode || record.rawJsonb?.transactionCode || record.rawJsonb?.payment?.transactionCode);
+  let st = toDisplayText(record.paymentInfo?.transactionStatus || (record as any).transactionStatus || (record as any).paymentStatus || record.rawJsonb?.transactionStatus || record.rawJsonb?.payment?.transactionStatus);
   const rawList: string[] = [];
 
   if (record.qrDetails && record.qrDetails.length > 0) {
-    for (const item of record.qrDetails) {
+    for (const rawItem of record.qrDetails) {
+      const item = toDisplayText(rawItem);
+      if (!item) continue;
+
       if (item.startsWith('PaymentMethod: ')) {
         if (!pm) pm = item.replace('PaymentMethod: ', '').trim();
       } else if (item.startsWith('BankCode: ')) {
@@ -380,7 +399,7 @@ export function formatOrderRowToText(record: DataType): string {
 
 export function generateVatLink(record: DataType): string {
   const isProd = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
-  const baseUrl = isProd ? window.location.origin : 'https://ais-dev-5tdhia5okebzkf7p4ob2hl-725393894613.asia-east1.run.app';
+  const baseUrl = isProd ? window.location.origin : '';
   return `${baseUrl}/vat-portal?oid=${record.id}&sid=${encodeURIComponent(record.storeId)}&rid=${record.rid}&sig=mock_sig_hash&a=${record.total}&ct=VND`;
 }
 
@@ -413,10 +432,12 @@ export function getOrderDetailFull(order: DataType): OrderDetailFull {
   const activityLog = raw.activityLog || {};
 
   // Store & Seller
+  const site = v(sellerInfo.site);
   const storeName = v(sellerInfo.storeName ?? sellerInfo.sellerLegalName ?? order.storeId);
   const sellerLegalName = v(sellerInfo.sellerLegalName);
   const sellerTaxCode = v(sellerInfo.sellerTaxCode);
-  const sellerAddress = v(sellerInfo.storeAddress ?? sellerInfo.sellerAddressLine);
+  const storeAddress = v(sellerInfo.storeAddress);
+  const sellerAddressLine = v(sellerInfo.sellerAddressLine);
   const sellerWebsite = v(sellerInfo.sellerWebsite);
   const invoiceSeries = v(sellerInfo.invoiceSeries);
 
@@ -426,7 +447,8 @@ export function getOrderDetailFull(order: DataType): OrderDetailFull {
   const salesChannel = v(receiptInfo.salesChannel ?? order.storeId);
   const receiptTime = v(receiptInfo.receiptTime ?? order.time);
   const uuid = v(receiptInfo.uuid);
-  const transactionName = v(receiptInfo.transactionName ?? order.caseCode ?? 'Phiếu xuất hàng hóa tiêu thụ');
+  const originalUuid = v(receiptInfo.originalUuid);
+  const transactionName = v(receiptInfo.transactionName ?? order.caseCode ?? 'N/A');
   const businessType = v(receiptInfo.businessType ?? 'Bán Lẻ');
 
   // Customer
@@ -436,7 +458,7 @@ export function getOrderDetailFull(order: DataType): OrderDetailFull {
   const custEmail = v(customerInfo.email);
   const custDistrict = v(customerInfo.district);
   const registrationDate = v(customerInfo.registrationDate);
-  const membershipTier = v(customerInfo.membershipTier ?? 'Thường');
+  const membershipTier = v(customerInfo.membershipTier ?? 'Membership');
 
   // Invoice / Buyer
   const buyerName = v(invoiceInfo.buyerName);
@@ -465,29 +487,27 @@ export function getOrderDetailFull(order: DataType): OrderDetailFull {
       sku: v(item.productCode || item.sku || item.code),
       barcode: v(item.barcode || item.barcodeNo),
       category: v(item.categoryName ? `${v(item.categoryCode, '')} - ${item.categoryName}`.trim() : (item.categoryCode || item.category)),
-      size: v(item.size || item.sizeName, 'Standard'),
-      color: v(item.color || item.colorName, 'Default'),
       unit: v(item.unit || item.unitName, 'Đôi'),
       quantity: Number(item.quantity || item.qty || 1),
       price: Number(item.unitPrice || item.price || 0),
+      discountPercentage: Number(item.discountPercentage || 0),
       discount: Number(item.discountAmount || item.discount || 0),
-      vat: Number(item.vatAmount || item.vat || Math.round(Number(item.totalAmount || item.total || 0) * 0.08)),
+      vat: Number(item.vatAmount),
       total: Number(item.totalAmount || item.total || item.amount || 0),
     }));
   } else {
     itemsList = [
       {
         productName: `Sản phẩm đơn hàng (${order.id})`,
-        sku: order.sku || 'SKU-0001',
-        barcode: order.barcode || '8934567890123',
+        sku: order.sku || 'N/A',
+        barcode: order.barcode || 'N/A',
         category: 'Hàng hóa tiêu thụ',
-        size: 'Standard',
-        color: 'Gốc',
         unit: 'Đôi',
         quantity: order.quantity || 1,
         price: order.total || 0,
+        discountPercentage: order.discountPercentage || 0,
         discount: order.discount || 0,
-        vat: Math.round((order.total || 0) * 0.08),
+        vat: order.total || 0,
         total: order.total || 0,
       }
     ];
@@ -495,7 +515,7 @@ export function getOrderDetailFull(order: DataType): OrderDetailFull {
 
   // Totals
   const totalAmountVal = Number(receiptTotals.totalAmount ?? order.total ?? 0);
-  const customerPaidAmountVal = Number(receiptTotals.customerPaidAmount ?? totalAmountVal);
+  const customerPaidAmountVal = Number(receiptTotals.customerPaidAmount) || totalAmountVal;
   const changeAmountVal = Number(receiptTotals.changeAmount ?? 0);
   const cardAmountVal = Number(receiptTotals.cardAmount ?? 0);
   const voucherAmountVal = Number(receiptTotals.voucherAmount ?? 0);
@@ -547,10 +567,12 @@ export function getOrderDetailFull(order: DataType): OrderDetailFull {
     store: {
       name: sellerLegalName !== 'Không có dữ liệu' ? sellerLegalName : storeName,
       code: salesChannel,
+      site: site,
       branch: storeName,
-      address: sellerAddress,
+      address: storeAddress,
+      addressLine: sellerAddressLine,
       hotline: '1900 6868',
-      email: 'support@bitis.com.vn',
+      email: 'chamsockhachhang@bitis.com.vn',
       website: sellerWebsite,
       taxCode: sellerTaxCode,
       invoiceCode: invoiceSeries,
@@ -632,6 +654,7 @@ export function getOrderDetailFull(order: DataType): OrderDetailFull {
       totalAmount: `${totalAmountVal.toLocaleString('vi-VN')} ₫`,
       amountPaid: `${customerPaidAmountVal.toLocaleString('vi-VN')} ₫`,
       amountDue: '0 ₫',
+      totalQuantity: receiptTotals.totalQuantity || receiptTotals.TotalQuantity,
     },
     delivery: {
       recipientName: buyerName !== 'Không có dữ liệu' ? buyerName : custName,
@@ -680,6 +703,7 @@ export function getOrderDetailFull(order: DataType): OrderDetailFull {
       caseCode: transactionName,
       documentNo: receiptNumber,
       uuid: uuid,
+      originalUuid: originalUuid,
       salesChannel: salesChannel,
       createdAt: receiptTime,
     }

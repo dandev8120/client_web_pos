@@ -25,7 +25,7 @@ const buildNumber = readGitValue('git rev-list --count HEAD', generatedAt.replac
 const version = packageJson.version || '0.0.0';
 const buildDate = new Date();
 const pad = value => String(value).padStart(2, '0');
-const buildStamp = `${buildDate.getFullYear()}${pad(buildDate.getMonth() + 1)}${pad(buildDate.getDate())}.${pad(buildDate.getHours())}${pad(buildDate.getMinutes())}`;
+const buildStamp = `${buildDate.getUTCFullYear()}${pad(buildDate.getUTCMonth() + 1)}${pad(buildDate.getUTCDate())}.${pad(buildDate.getUTCHours())}${pad(buildDate.getUTCMinutes())}`;
 const display = `v${version}.${buildNumber}`;
 
 mkdirSync(dirname(outputPath), { recursive: true });

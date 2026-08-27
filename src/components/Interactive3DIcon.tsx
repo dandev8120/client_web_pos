@@ -73,6 +73,7 @@ export const Revenue3D: React.FC = () => {
             d="M 15,60 L 35,42 L 58,45 L 85,15 L 85,80 L 15,80 Z" 
             fill="url(#glowGrad)" 
             opacity={isHovered ? 0.35 : 0.15}
+            initial={{ opacity: 0.15 }}
             animate={{ opacity: isHovered ? 0.4 : 0.15 }}
             transition={{ duration: 0.3 }}
           />
@@ -138,6 +139,7 @@ export const Order3D: React.FC = () => {
         {/* Glowing concentric circle rings under box */}
         <motion.g
           style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+          initial={{ scale: 0.95, opacity: 0.3 }}
           animate={{ scale: isHovered ? [0.95, 1.08, 0.95] : 0.95, opacity: isHovered ? 0.8 : 0.3 }}
           transition={{ repeat: Infinity, duration: 2 }}
         >
@@ -182,9 +184,9 @@ export const Order3D: React.FC = () => {
         {/* Floating star particles inside on hover */}
         {isHovered && (
           <>
-            <motion.circle cx="28" cy="30" r="2.5" fill="#34d399" animate={{ y: [-5, -15], opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.1 }} />
-            <motion.circle cx="72" cy="28" r="2.0" fill="#facc15" animate={{ y: [-2, -18], opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1.3, delay: 0.4 }} />
-            <motion.circle cx="50" cy="22" r="3.0" fill="#ef4444" animate={{ y: [0, -20], opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1.7, delay: 0.2 }} />
+            <motion.circle cx="28" cy="30" r="2.5" fill="#34d399" initial={{ y: -5, opacity: 0 }} animate={{ y: [-5, -15], opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.1 }} />
+            <motion.circle cx="72" cy="28" r="2.0" fill="#facc15" initial={{ y: -2, opacity: 0 }} animate={{ y: [-2, -18], opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1.3, delay: 0.4 }} />
+            <motion.circle cx="50" cy="22" r="3.0" fill="#ef4444" initial={{ y: 0, opacity: 0 }} animate={{ y: [0, -20], opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 1.7, delay: 0.2 }} />
           </>
         )}
       </svg>
@@ -440,6 +442,7 @@ export const OrdersList3D: React.FC<{ externalHover?: boolean }> = ({ externalHo
         {/* Animated Ripple Circles on Base */}
         <motion.g
           style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+          initial={{ scale: 1, opacity: 0 }}
           animate={{ scale: isHovered ? [1, 1.25, 1] : 1, opacity: isHovered ? [0.6, 0, 0.6] : 0 }}
           transition={{ repeat: Infinity, duration: 1.8 }}
         >
@@ -567,7 +570,7 @@ export const SyncServer3D: React.FC<{ externalHover?: boolean }> = ({ externalHo
           <motion.g animate={{ y: isHovered ? -6 : 0 }}>
             <rect x="25" y="30" width="50" height="18" rx="3" fill="#fbbf24" />
             <circle cx="35" cy="39" r="2.5" fill="#fffbeb" />
-            <motion.circle cx="43" cy="39" r="2" fill="#ef4444" animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 0.8 }} />
+            <motion.circle cx="43" cy="39" r="2" fill="#ef4444" initial={{ opacity: 1 }} animate={{ opacity: [1, 0.3, 1] }} transition={{ repeat: Infinity, duration: 0.8 }} />
             <rect x="52" y="37" width="18" height="4" rx="2" fill="#d97706" />
           </motion.g>
 

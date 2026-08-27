@@ -1,4 +1,5 @@
 import { User } from 'oidc-client-ts';
+import { getAxiosErrorMessage, httpClient } from '../api/httpClient';
 
 export interface AppSession {
   id: string;
@@ -9,14 +10,8 @@ export interface AppSession {
 }
 
 export async function createAppSession(oidcUser: User) {
-  const response = await fetch('/api/session', {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${oidcUser.access_token}`,
-    },
-    body: JSON.stringify({
+  try {
+    const response = await httpClient.post('/api/session', {
       idToken: oidcUser.id_token,
       user: {
         sub: oidcUser.profile.sub,
@@ -24,19 +19,18 @@ export async function createAppSession(oidcUser: User) {
         email: oidcUser.profile.email,
         role: oidcUser.profile.role || oidcUser.profile.roles,
       },
-    }),
-  });
+    }, {
+      headers: {
+        Authorization: `Bearer ${oidcUser.access_token}`,
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Cannot create app session: ${response.status}`);
+    return response.data as { success: true; session: AppSession };
+  } catch (err) {
+    throw new Error(`Cannot create app session: ${getAxiosErrorMessage(err).message}`);
   }
-
-  return response.json() as Promise<{ success: true; session: AppSession }>;
 }
 
 export async function clearAppSession() {
-  await fetch('/api/session', {
-    method: 'DELETE',
-    credentials: 'include',
-  }).catch(() => undefined);
+  await httpClient.delete('/api/session').catch(() => undefined);
 }

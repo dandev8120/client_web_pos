@@ -1,6 +1,6 @@
 {
   "name": "client_web_pos",
-  "shortName": "POS CENTER",
+  "shortName": "POS CENTER Portal",
   "logoUrl": "https://theme.hstatic.net/1000230642/1001205219/14/favicon-new.png?v=10907",
   "logoUrlVAT": "https://theme.hstatic.net/1000230642/1001205219/14/favicon-new.png?v=10907",
   "description": "Imported from GitHub: dandev8120/client_web_pos",
@@ -8,12 +8,13 @@
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ],
-  "title": "POS CENTER - Biti's Việt Nam",
-  "header": "Hệ Thống Trung Tâm Quản Lý Bán Lẻ POS CENTER - Biti's",
-  "footer": "© 2026 Công ty TNHH Sản Xuất Hàng Tiêu Dùng Bình Tiên Biti's. Bản quyền thuộc về POS CENTER.",
+  "title": "POS CENTER - Biti's Software",
+  "header": "POS CENTER Portal - Biti's Software",
+  "footer": "© 2026 Biti's Software - POS CENTER Portal.",
   "seoKeywords": [
     "POS CENTER",
     "Biti's",
+    "Biti's Software",
     "Biti's Hunter",
     "Quản lý bán hàng POS",
     "Bán lẻ Biti's",

@@ -4,6 +4,7 @@
 @layer base {
   body {
     @apply bg-gray-50;
+    font-family: 'Times New Roman', Times, serif;
   }
 }
 
@@ -174,6 +175,7 @@
 /* Antd Table Empty State & Dropdown Responsiveness */
 .ant-table-placeholder {
   background: transparent !important;
+  color: #94a3b8 !important;
 }
 
 .ant-table-placeholder > td {
@@ -194,6 +196,7 @@
 .ant-table-placeholder .ant-table-cell-row-hover,
 .ant-table-placeholder:hover .ant-table-cell {
   background: transparent !important;
+  color: #94a3b8 !important;
 }
 
 .ant-table-wrapper {
@@ -206,13 +209,95 @@
   border-radius: 8px;
 }
 
-/* Prevent dropdown popups from overflowing screen on mobile & ensure high z-index above table elements */
-.mobile-responsive-picker,
-.ant-dropdown,
-.ant-popover,
-.ant-select-dropdown,
-.ant-picker-dropdown {
-  max-width: calc(100vw - 16px) !important;
-  z-index: 2100 !important;
+
+/* Floating Label styling */
+.floating-label-wrap {
+  position: relative;
+  margin-top: 10px;
+  margin-bottom: 8px !important;
 }
 
+.floating-label-wrap .ant-form-item-label {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  z-index: 10;
+  padding: 0 !important;
+  pointer-events: none;
+  transition: all 0.2s ease-out;
+}
+
+.floating-label-wrap .ant-form-item-label label {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease-out;
+  transform-origin: left top;
+}
+
+/* Hide original placeholders so they don't overlap the resting label */
+.floating-label-wrap .ant-input::placeholder,
+.floating-label-wrap .ant-select-selection-placeholder,
+.floating-label-wrap .ant-picker-input > input::placeholder,
+.floating-label-wrap .ant-input-number-input::placeholder {
+  color: transparent !important;
+  opacity: 0 !important;
+}
+
+/* When focused or has value: float the label up */
+.floating-label-wrap:has(
+  .ant-input:focus,
+  .ant-input-number-input:focus,
+  .ant-select-focused,
+  .ant-picker-focused,
+  .ant-input:not(:placeholder-shown),
+  .ant-input-number-input:not(:placeholder-shown),
+  .ant-select-selection-item,
+  .ant-picker-input > input:not(:placeholder-shown),
+  .ant-picker-input > input:not([value=""])
+) .ant-form-item-label {
+  top: -10px;
+  left: 10px;
+}
+
+.floating-label-wrap:has(
+  .ant-input:focus,
+  .ant-input-number-input:focus,
+  .ant-select-focused,
+  .ant-picker-focused,
+  .ant-input:not(:placeholder-shown),
+  .ant-input-number-input:not(:placeholder-shown),
+  .ant-select-selection-item,
+  .ant-picker-input > input:not(:placeholder-shown),
+  .ant-picker-input > input:not([value=""])
+) .ant-form-item-label label > span {
+  font-size: 11px !important;
+}
+
+/* Base state when resting (larger) */
+.floating-label-wrap:not(:has(
+  .ant-input:focus,
+  .ant-input-number-input:focus,
+  .ant-select-focused,
+  .ant-picker-focused,
+  .ant-input:not(:placeholder-shown),
+  .ant-input-number-input:not(:placeholder-shown),
+  .ant-select-selection-item,
+  .ant-picker-input > input:not(:placeholder-shown),
+  .ant-picker-input > input:not([value=""])
+)) .ant-form-item-label label > span {
+  font-size: 13px !important;
+  color: #94a3b8 !important; /* slate-400 */
+  /* Remove background when resting inside */
+  background: transparent !important;
+}
+
+/* Remove label colon */
+.floating-label-wrap .ant-form-item-label label::after {
+  content: none !important;
+  display: none !important;
+}
+
+.floating-label-wrap .ant-form-item-control {
+  width: 100%;
+}

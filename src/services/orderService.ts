@@ -1,9 +1,11 @@
 import { API_CONFIG } from '../api/config';
+import { getAxiosErrorMessage, httpClient } from '../api/httpClient';
 import { OrderRequestDto, OrderResponseDto, OrderMapper, OrderSearchPayloadRequest, OrderSearchPayloadDto } from '../dtos/OrderDto';
 import { DataType } from '../components/orders/orderTypes';
 import { OrderMapper as OrderHelperMapper, cleanSiteCode } from '../components/orders/orderHelpers';
 import { cleanPayload } from '../utils/cleanPayload';
 import seedOrderDetailsJson from '../seed/seedOrderDetails.json';
+import { ApiResponseError, createApiErrorResponse, extractErrorMessage, toApiResponseError } from '../api/response';
 
 export const API_BASE_URL = API_CONFIG.posHost;
 
@@ -21,22 +23,15 @@ export class OrderService {
     const cleanedPayload = cleanPayload(payloadDto as Record<string, unknown>);
     const url = `/api/receipts-center/summary-search`;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-Client-App': 'POS-CENTER-BITIS',
-        'ngrok-skip-browser-warning': 'true',
-      },
-      body: JSON.stringify(cleanedPayload),
-    });
-
-    const json = await response.json().catch(() => null);
-
-    if (!response.ok) {
-      const errMessage = json?.message || json?.error || json?.code || `Lỗi phản hồi từ máy chủ API (HTTP ${response.status})`;
-      throw new Error(String(errMessage));
+    let json: any = null;
+    try {
+      const response = await httpClient.post(url, cleanedPayload);
+      json = response.data;
+    } catch (err) {
+      const error = getAxiosErrorMessage(err, 'Lỗi phản hồi từ máy chủ API');
+      const message = extractErrorMessage(error.data) ?? error.message;
+      throw toApiResponseError({...error, message,});
+      //throw new Error(getAxiosErrorMessage(err, 'Lỗi phản hồi từ máy chủ API').message);
     }
 
     if (json && (json.success === false || json.isSuccess === false)) {
@@ -153,28 +148,18 @@ export class OrderService {
       const cleanReceipt = encodeURIComponent(normalizedReceipt);
       const query = `forceRefresh=${Boolean(forceRefresh)}`;
 
-      const primaryUrl = `/api/receipts-center/detail/${cleanReceipt}/${cleanSite}?${query}`;
+      const primaryUrl = `/api/receipts-center/detail/${cleanSite}/${cleanReceipt}?${query}`;
 
       let json: any = null;
       let httpError: string | null = null;
 
       try {
-        const response = await fetch(primaryUrl, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'X-Client-App': 'POS-CENTER-BITIS',
-            'ngrok-skip-browser-warning': 'true',
-          },
-        });
-
-        json = await response.json().catch(() => null);
-
-        if (!response.ok) {
-          httpError = json?.message || json?.error || json?.code || `HTTP ${response.status}`;
-        }
+        const response = await httpClient.get(primaryUrl);
+        json = response.data;
       } catch (err: any) {
-        httpError = err.message || 'Lỗi kết nối';
+        const errorResponse = getAxiosErrorMessage(err, 'Lỗi kết nối');
+        httpError = errorResponse.message;
+        json = err.response?.data || null;
       }
 
       if (json && (json.success === false || json.isSuccess === false)) {

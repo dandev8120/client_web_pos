@@ -55,9 +55,6 @@ import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 
 import PageContainer from '../components/PageContainer';
-import FancyUpload from '../components/FancyUpload';
-import POSOrder from '../components/POSOrder';
-import PrintInvoiceModal from '../components/PrintInvoiceModal';
 import { SmartTable } from '../components/SmartTable';
 import { hasButtonPermission } from '../utils/rbacPresets';
 import { OrderSearchPayloadRequest, OrderSearchPayloadDto } from '../dtos/OrderDto';
@@ -70,8 +67,14 @@ import { initialDataSource, getOrderDetailFull, mapBackendOrderToDataType, Order
 import { StatusIndicator } from '../components/orders/StatusIndicator';
 import { OrderStatsOverview } from '../components/orders/OrderStatsOverview';
 import { OrderMobileCard } from '../components/orders/OrderMobileCard';
-import { OrderDetailView } from '../components/orders/OrderDetailView';
 import { OrderFilterBar } from '../components/orders/OrderFilterBar';
+
+const FancyUpload = React.lazy(() => import('../components/FancyUpload'));
+const POSOrder = React.lazy(() => import('../components/POSOrder'));
+const PrintInvoiceModal = React.lazy(() => import('../components/PrintInvoiceModal'));
+const OrderDetailView = React.lazy(() =>
+  import('../components/orders/OrderDetailView').then(({ OrderDetailView: component }) => ({ default: component }))
+);
 
 const { Text } = Typography;
 
@@ -226,6 +229,12 @@ export const Orders: React.FC = () => {
   const quickSearch = searchParams.get('q') || searchParams.get('keyword') || '';
   const page = parseInt(searchParams.get('page') || '1', 10);
   const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
+  const normalizeStatsText = (value: unknown): string => {
+    if (value === undefined || value === null) return '';
+    if (Array.isArray(value)) return value.map(normalizeStatsText).filter(Boolean).join('/');
+    if (typeof value === 'object') return '';
+    return String(value).toUpperCase().trim();
+  };
 
   const safeDecode = (str: string): string => {
     if (!str) return '';
@@ -283,12 +292,14 @@ export const Orders: React.FC = () => {
   const hasQueryParameters = useMemo(() => {
     return searchParamKeys.some(key => searchParams.has(key) && searchParams.get(key) !== '');
   }, [searchParams]);
+  const currentSearchSignature = useMemo(() => searchParams.toString(), [searchParams]);
 
   // POST Search states
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [postSearchResults, setPostSearchResults] = useState<DataType[]>([]);
   const [postTotalCount, setPostTotalCount] = useState<number>(0);
   const [postPayloadUsed, setPostPayloadUsed] = useState<OrderSearchPayloadDto | null>(null);
+  const [postSearchSignatureUsed, setPostSearchSignatureUsed] = useState<string>('');
 
   // Custom flexible Page Size input state
   const [customPageSizeInput, setCustomPageSizeInput] = useState<number | null>(pageSize);
@@ -321,6 +332,7 @@ export const Orders: React.FC = () => {
       setPostSearchResults([]);
       setPostTotalCount(0);
       setPostPayloadUsed(null);
+      setPostSearchSignatureUsed('');
       return;
     }
 
@@ -386,7 +398,7 @@ export const Orders: React.FC = () => {
 
     // Build POST payload DTO request cleanly
     const payloadReq = new OrderSearchPayloadRequest({
-      pageIndex: Math.max(0, curPage - 1),
+      pageIndex: Math.max(1, curPage),
       pageSize: curPageSize,
       keyword,
       maSites,
@@ -410,6 +422,8 @@ export const Orders: React.FC = () => {
     });
 
     let isMounted = true;
+    const requestSignature = currentSearchSignature;
+    setSelectedRowKeys([]);
     setIsLoading(true);
 
     orderService.searchOrdersPost(payloadReq)
@@ -418,15 +432,17 @@ export const Orders: React.FC = () => {
           setPostSearchResults(res.items);
           setPostTotalCount(res.total);
           setPostPayloadUsed(res.payload);
+          setPostSearchSignatureUsed(requestSignature);
           setIsLoading(false);
         }
       })
       .catch(err => {
-        console.warn('POST search API warning:', err);
+        console.warn('POST searchReceipts API catch:', err);
         if (isMounted) {
-          message.warning('Không thể kết nối máy chủ API.');
+          message.warning(`Cảnh báo ${err instanceof Error ? err.message : 'Có lỗi xảy ra'}`);
           setPostSearchResults([]);
           setPostTotalCount(0);
+          setPostSearchSignatureUsed('');
           setIsLoading(false);
         }
       });
@@ -434,7 +450,7 @@ export const Orders: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [searchParams]);
+  }, [searchParams, currentSearchSignature]);
 
   // Detail View API State & Fetching
   const [detailOrder, setDetailOrder] = useState<DataType | null>(null);
@@ -538,7 +554,7 @@ export const Orders: React.FC = () => {
   const handleOpenDetail = (record: DataType) => {
     const site = cleanSiteCode(record.storeId || (record as any).siteCode || '1134');
     const receipt = record.id || (record as any).receiptNumber || '';
-    navigate(`/sales/orders/detail/${encodeURIComponent(site)}/${encodeURIComponent(receipt)}?forceRefresh=true`);
+    navigate(`/sales/orders/detail/${encodeURIComponent(site)}/${encodeURIComponent(receipt)}?forceRefresh=false`);
   };
 
   const handleCloseDetail = () => {
@@ -616,6 +632,7 @@ export const Orders: React.FC = () => {
       width: 60,
       fixed: 'left' as const,
       align: 'center' as const,
+      resizable: false,
       render: (_: any, __: any, index: number) => (
         <span className="text-xs font-mono font-medium text-slate-500">
           {(page - 1) * pageSize + index + 1}
@@ -626,18 +643,22 @@ export const Orders: React.FC = () => {
       title: 'Mã cửa hàng',
       dataIndex: 'storeId',
       key: 'storeId',
+      width: 130,
+      fixed: 'left' as const,
       align: 'center' as const,
-      resizable: true,
+      searchable: true,
+      resizable: false,
       render: (text: string) => <Tag color="blue" className="font-mono text-xs m-0">{text}</Tag>
     },
     {
       title: 'Số chứng từ',
       dataIndex: 'id',
       key: 'id',
+      width: 190,
       fixed: 'left' as const,
       align: 'center' as const,
       searchable: true,
-      resizable: true,
+      resizable: false,
       render: (text: string, record: DataType) => (
         <a 
           onClick={(e) => {
@@ -656,6 +677,7 @@ export const Orders: React.FC = () => {
       dataIndex: 'invoiceNo',
       key: 'invoiceNo',
       align: 'center' as const,
+      searchable: true,
       resizable: true,
       render: (text: string) => {
         if (text === 'Chưa xuất') {
@@ -742,15 +764,16 @@ export const Orders: React.FC = () => {
       key: 'customer',
       align: 'center' as const,
       searchable: true,
+      searchFields: ['customerCode', 'phone'],
       resizable: true,
       render: (text: string, record: DataType) => (
         <div className="space-y-1 py-0.5 text-center flex flex-col items-center">
           <div className="text-xs font-semibold text-slate-800" title={text}>
-            {text || 'Khách Vãng Lai'}
+            {text}
           </div>
           <div>
             <Tag color="blue" className="font-mono text-[10px] px-1.5 py-0 m-0 border-blue-200 bg-blue-50 text-blue-700">
-              {record.customerCode || 'KH001'}
+              {record.customerCode}
             </Tag>
           </div>
           <div className="text-[11px] text-slate-500 font-mono">
@@ -1025,7 +1048,18 @@ export const Orders: React.FC = () => {
         ].filter(Boolean) as MenuProps['items'];
 
         return (
-          <Dropdown menu={{ items, onClick: handleMenuClick }} trigger={['click']} placement="bottomRight">
+          <Dropdown
+            menu={{ items, onClick: handleMenuClick }}
+            trigger={['click']}
+            placement="bottomRight"
+            getPopupContainer={() => document.body}
+            overlayClassName="smart-table-action-dropdown"
+            overlayStyle={{
+              zIndex: 1200,
+              maxHeight: 'min(280px, calc(100vh - 24px))',
+              overflowY: 'auto',
+            }}
+          >
             <Button type="text" shape="circle" icon={<MoreOutlined className="text-slate-600" />} />
           </Dropdown>
         );
@@ -1054,37 +1088,30 @@ export const Orders: React.FC = () => {
     statsData.forEach(curr => {
       if (!curr) return;
       const pay = parsePaymentDetails(curr);
-      const pm = (pay.paymentMethod || (curr as any).paymentMethod || (curr.rawJsonb?.paymentMethod) || (curr.rawJsonb?.payment?.paymentMethod) || '').toUpperCase().trim();
-      const bc = (pay.bankCode || (curr as any).bankCode || (curr.rawJsonb?.bankCode) || (curr.rawJsonb?.payment?.bankCode) || '').toUpperCase().trim();
-      const tc = (pay.transactionCode || (curr as any).transactionCode || (curr.rawJsonb?.transactionCode) || (curr.rawJsonb?.payment?.transactionCode) || '').toUpperCase().trim();
-      const st = (pay.transactionStatus || (curr as any).transactionStatus || (curr as any).paymentStatus || (curr.rawJsonb?.transactionStatus) || (curr.rawJsonb?.payment?.transactionStatus) || '').toUpperCase().trim();
+      const pm = normalizeStatsText(pay.paymentMethod || (curr as any).paymentMethod || (curr.rawJsonb?.paymentMethod) || (curr.rawJsonb?.payment?.paymentMethod));
+      const st = normalizeStatsText(pay.transactionStatus || (curr as any).transactionStatus || (curr as any).paymentStatus || (curr.rawJsonb?.transactionStatus) || (curr.rawJsonb?.payment?.transactionStatus));
 
       // Check transactionStatus = SUCCESS
       const isSuccess = st === 'SUCCESS' || st.includes('SUCCESS') || (!st && curr.status !== 'cancelled');
       if (!isSuccess) return;
 
-      if (pm.includes('VOUCHER') || pm.includes('GIFT') || pm.includes('COUPON') || pm.includes('QUÀ')) {
-        totalVoucherOrders++;
-      } else if (pm.includes('TM') || pm.includes('CASH') || pm.includes('TIEN') || pm.includes('TIỀN')) {
-        totalCashOrders++;
-      } else if (
-        pm.includes('QR') || pm.includes('ZALOPAY') || pm.includes('VNPAY') || 
-        pm.includes('MOMO') || pm.includes('VIETTELPAY') || pm.includes('PAYOO') || 
-        pm.includes('SHOPEEPAY') || pm.includes('AIRPAY') ||
-        (curr.qrTransactionId && curr.qrTransactionId !== 'N/A')
-      ) {
-        totalQrOrders++;
-      } else if (
-        pm.includes('ATM') || pm.includes('CK') || pm.includes('BANK') || 
-        pm.includes('TRANSFER') || pm.includes('CHUYỂN') || pm.includes('CHUYEN') || 
-        pm.includes('CT') || pm.includes('NH') || pm.includes('NGAN') || 
-        pm.includes('THE') || pm.includes('THẺ') || pm.includes('CARD') || 
-        pm.includes('VISA') || pm.includes('MASTER') || pm.includes('POS') || 
-        bc !== '' || tc !== '' || pay.hasInfo
-      ) {
-        totalAtmCkOrders++;
-      } else {
-        totalCashOrders++;
+      const pmParts = pm.split('/').map((p: string) => p.trim());
+
+      for (const part of pmParts) {
+        if (part === 'TM') {
+          totalCashOrders++;
+        } else if (part === 'VOUCHER') {
+          totalVoucherOrders++;
+        } else if (part === 'CK' || part === 'ATM') {
+          totalAtmCkOrders++;
+        } else if (
+          part.includes('QR') || part.includes('ZALOPAY') || part.includes('VNPAY') ||
+          (curr.qrTransactionId && curr.qrTransactionId !== 'N/A')
+        ) {
+          totalQrOrders++;
+        } else {
+          totalCashOrders++; // fallback
+        }
       }
     });
 
@@ -1147,6 +1174,17 @@ export const Orders: React.FC = () => {
     };
   }, [hasQueryParameters, postSearchResults, postTotalCount]);
 
+  const isLargeResultSet = postSearchResults.length > 200;
+  const useVirtualTable = isLargeResultSet;
+  const tableScrollX = 2600;
+  const tableTargetRows = Math.min(Math.max(pageSize, 10), 12);
+  const tableScrollY = isLargeResultSet
+    ? 'clamp(720px, calc(100vh - 220px), 1180px)'
+    : `clamp(720px, calc(100vh - 220px), ${tableTargetRows * 112}px)`;
+  const tableDataSource = postSearchSignatureUsed === currentSearchSignature
+    ? postSearchResults
+    : [];
+
   const orderIdOptions = useMemo(() => {
     return Array.from(new Set((dataSource || []).filter(Boolean).map(d => d?.id).filter(Boolean))).map(id => ({ value: id, label: id }));
   }, [dataSource]);
@@ -1158,7 +1196,7 @@ export const Orders: React.FC = () => {
         <Space size={8} wrap>
           <Input
             placeholder={t('search_placeholder')}
-            prefix={<SearchOutlined className="text-slate-400" />}
+            prefix={<SearchOutlined className="hover:border-slate-400 whitespace-nowrap" />}
             value={quickSearch}
             onChange={(e) => {
               const val = e.target.value;
@@ -1169,29 +1207,27 @@ export const Orders: React.FC = () => {
               });
             }}
             allowClear
-            size="small"
             className="rounded-lg w-40 sm:w-60"
             onPressEnter={(e: any) => handleSearch({ ...form.getFieldsValue(), keyword: e.target.value })}
           />
-          <Tooltip title="Tải lại dữ liệu từ server">
-            <Button 
-              size="small" 
+          <Tooltip title={t('refresh')}>
+            <Button
               icon={<ReloadOutlined className="text-blue-600" />} 
               onClick={handleRefresh}
               loading={isLoading}
-              className="text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100 font-medium"
+              className="hover:border-slate-400 whitespace-nowrap"
             >
               Làm mới
             </Button>
           </Tooltip>
 
           {canCreateOrder ? (
-            <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setIsCreating(true)} className="bg-blue-600 font-semibold">
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsCreating(true)} className="hover:border-slate-400 whitespace-nowrap">
               {t('add_new')}
             </Button>
           ) : (
             <Tooltip title="Tài khoản không có Quyền Tạo Đơn mới (403 Forbidden: sales.orders.btn_create)">
-              <Button size="small" disabled type="primary" icon={<LockOutlined />}>
+              <Button disabled type="primary" icon={<LockOutlined />}>
                 {t('add_new')} (Khóa 403)
               </Button>
             </Tooltip>
@@ -1201,15 +1237,17 @@ export const Orders: React.FC = () => {
 
       {/* Search API results display table */}
       <div className="space-y-3">
-        <div className="overflow-x-auto border border-slate-200/80 rounded-xl bg-white">
+        <div className="overflow-hidden border border-slate-200/80 rounded-xl bg-white">
           <SmartTable
             loading={isLoading}
             rowSelection={{
               selectedRowKeys,
-              onChange: setSelectedRowKeys
+              onChange: setSelectedRowKeys,
+              columnWidth: 48,
+              fixed: true,
             }}
             selectedRowKeys={selectedRowKeys}
-            rowDraggable
+            rowDraggable={false}
             onRowDragEnd={(activeId, overId) => {
               if (activeId !== overId) {
                 setDataSource((prev) => {
@@ -1221,136 +1259,12 @@ export const Orders: React.FC = () => {
             }}
             rowKey="key"
             columns={columns as any}
-            dataSource={postSearchResults}
-            scroll={{ x: 'max-content', y: 'calc(100vh - 360px)' }}
+            dataSource={tableDataSource}
+            scroll={{ x: tableScrollX, y: tableScrollY }}
             sticky
-            expandable={isMobile ? {
-              expandedRowRender: (record: DataType) => {
-                const payment = parsePaymentDetails(record);
-                const { paymentMethod, bankCode, transactionCode, transactionStatus } = payment;
-
-                let rawStr = '';
-                if (record.discountsList && record.discountsList.length > 0) {
-                  rawStr = record.discountsList.join(';');
-                } else if (record.discount) {
-                  rawStr = String(record.discount);
-                }
-                const discountLines = parseDiscountCodesToLines(rawStr);
-
-                return (
-                  <div className="p-3 sm:p-4 bg-slate-50/90 rounded-xl border border-slate-200/90 shadow-inner my-1 space-y-3 text-left">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Tag color="blue" className="font-mono text-xs font-semibold m-0">{record.storeId}</Tag>
-                        <span className="font-bold text-slate-800 text-sm font-mono">{record.id}</span>
-                        <span className="text-xs text-slate-500">({record.time})</span>
-                      </div>
-                      <Space size="small">
-                        <Button size="small" type="primary" ghost icon={<EyeOutlined />} onClick={() => handleOpenDetail(record)}>
-                          Chi tiết
-                        </Button>
-                        <Button size="small" icon={<PrinterOutlined />} onClick={() => { setPrintOrder(record); setIsPrintModalOpen(true); }}>
-                          In HD
-                        </Button>
-                      </Space>
-                    </div>
-
-                    <Row gutter={[12, 12]} className="text-xs">
-                      {/* Khách hàng & Nhân viên */}
-                      <Col xs={24} sm={12} md={6}>
-                        <div className="text-slate-500 font-semibold mb-1 uppercase text-[10px] tracking-wider">Khách hàng & Nhân viên</div>
-                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1">
-                          <div className="font-semibold text-slate-800">{record.customer || 'Khách Vãng Lai'}</div>
-                          {record.phone && <div className="text-slate-600 font-mono">SĐT: {record.phone}</div>}
-                          {record.customerCode && <div className="text-slate-400 font-mono text-[11px]">Mã KH: {record.customerCode}</div>}
-                          <Divider className="my-1.5" />
-                          <div className="text-slate-700">NV: <span className="font-medium">{record.employee}</span></div>
-                          {record.employeeCode && <div className="text-slate-400 font-mono text-[11px]">Mã NV: {record.employeeCode}</div>}
-                        </div>
-                      </Col>
-
-                      {/* Thanh toán & Giao dịch */}
-                      <Col xs={24} sm={12} md={6}>
-                        <div className="text-slate-500 font-semibold mb-1 uppercase text-[10px] tracking-wider">Thanh toán & Giao dịch</div>
-                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">PTTT:</span>
-                            <span className="font-semibold text-slate-800">{paymentMethod || 'Tiền mặt'}</span>
-                          </div>
-                          {bankCode && (
-                            <div className="flex justify-between">
-                              <span className="text-slate-500">Ngân hàng:</span>
-                              <span className="font-medium text-slate-700">{bankCode}</span>
-                            </div>
-                          )}
-                          {transactionCode && (
-                            <div className="flex items-center justify-between gap-1 bg-sky-50 p-1.5 rounded border border-sky-200 mt-1">
-                              <span className="text-[10px] text-sky-700 font-medium shrink-0">Mã GD:</span>
-                              <span className="font-mono font-bold text-sky-900 break-all text-[11px] select-all">{transactionCode}</span>
-                            </div>
-                          )}
-                          {transactionStatus && (
-                            <div className="flex justify-between items-center text-[11px]">
-                              <span className="text-slate-500">Trạng thái GD:</span>
-                              <Tag color={transactionStatus.includes('SUCCESS') ? 'green' : 'orange'} className="m-0 text-[10px]">
-                                {transactionStatus}
-                              </Tag>
-                            </div>
-                          )}
-                        </div>
-                      </Col>
-
-                      {/* Khuyến mãi & Chiết khấu */}
-                      <Col xs={24} sm={12} md={6}>
-                        <div className="text-slate-500 font-semibold mb-1 uppercase text-[10px] tracking-wider">Số lượng & Khuyến mãi</div>
-                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">Số lượng:</span>
-                            <span className="font-bold text-slate-800">{record.quantity} SP</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-500">CK Dòng:</span>
-                            <span className="font-mono text-slate-700">{record.lineDiscount ? `${record.lineDiscount.toLocaleString('vi-VN')} ₫` : '0 ₫'}</span>
-                          </div>
-                          {discountLines.length > 0 && (
-                            <div className="mt-1 bg-rose-50 p-1.5 rounded border border-rose-200 text-[11px] font-mono text-rose-900 space-y-0.5">
-                              <div className="font-bold text-rose-700 font-sans text-[10px] uppercase">Mã giảm giá:</div>
-                              {discountLines.map((l, i) => (
-                                <div key={i}>{l}</div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </Col>
-
-                      {/* Tổng tiền & Trạng thái */}
-                      <Col xs={24} sm={12} md={6}>
-                        <div className="text-slate-500 font-semibold mb-1 uppercase text-[10px] tracking-wider">Thực thu & Trạng thái</div>
-                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 space-y-1.5">
-                          <div className="flex justify-between items-center">
-                            <span className="text-slate-500">Thực thu:</span>
-                            <span className="font-bold text-sm font-mono text-blue-600">{record.total ? `${record.total.toLocaleString('vi-VN')} ₫` : '0 ₫'}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-[11px]">
-                            <span className="text-slate-500">Số HĐ VAT:</span>
-                            <span className="font-mono text-slate-700">{record.invoiceNo || 'Chưa xuất'}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-[11px]">
-                            <span className="text-slate-500">Tên ca:</span>
-                            <span className="text-slate-700">{record.shiftName || 'Ca 1'}</span>
-                          </div>
-                          <div className="flex justify-between items-center pt-1 border-t border-slate-100">
-                            <span className="text-slate-500">SAP:</span>
-                            <StatusIndicator status={record.sapStatus} type="sap" />
-                          </div>
-                        </div>
-                      </Col>
-                    </Row>
-                  </div>
-                );
-              },
-              rowExpandable: () => true,
-            } : undefined}
+            tableLayout="fixed"
+            virtual={useVirtualTable}
+            responsiveExpanded={isMobile}
             pagination={{
               position: isMobile ? ['bottomCenter'] : ['bottomRight'],
               current: page,
@@ -1358,7 +1272,7 @@ export const Orders: React.FC = () => {
               total: postTotalCount,
               showSizeChanger: !isMobile,
               showQuickJumper: !isMobile,
-              pageSizeOptions: Array.from(new Set(['10', '20', '50', '100', '200', '500', '1000', '2000', '5000', pageSize.toString()])).sort((a, b) => Number(a) - Number(b)),
+              pageSizeOptions: Array.from(new Set(['10', '20', '50', '100', '200', '500', pageSize.toString()])).sort((a, b) => Number(a) - Number(b)),
               showTotal: (total, range) => (
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-slate-600 text-xs py-1 max-w-full">
                   <span className="whitespace-nowrap">Hiển thị <b className="text-slate-800">{range[0]}-{range[1]}</b> / <b className="text-slate-800">{total}</b> đơn hàng</span>
@@ -1388,7 +1302,7 @@ export const Orders: React.FC = () => {
               onChange: (p, ps) => {
                 setSearchParams(prev => {
                   const next = new URLSearchParams(prev);
-                  next.set('page', p.toString());
+                  next.set('page', ps !== pageSize ? '1' : p.toString());
                   next.set('pageSize', ps.toString());
                   return next;
                 });
@@ -1414,10 +1328,9 @@ export const Orders: React.FC = () => {
               Quay lại danh sách
             </Button>
             <Divider type="vertical" className="h-5 bg-slate-200 hidden sm:inline-block" />
-            <span className="text-base sm:text-lg font-extrabold text-slate-800 break-all">Chi tiết chứng từ {receiptParam}</span>
+                    <span className="text-base sm:text-lg font-extrabold text-slate-800 break-all">Chi tiết chứng từ {siteParam} {receiptParam}</span>
           </div>
         }
-        subtitle="Hệ thống lưu trữ và đồng bộ hóa hóa đơn VAT điện tử tích hợp SAP"
         noCard={true}
       >
         {isLoadingDetail ? (
@@ -1445,7 +1358,7 @@ export const Orders: React.FC = () => {
                 message={
                   detailElapsedSeconds >= 10
                     ? "Máy chủ POS Center đang xử lý dữ liệu. Hệ thống đang giữ kết nối cho đến khi máy chủ phản hồi hoàn tất."
-                    : "Đang truy vấn cơ sở dữ liệu POS Center. Vui lòng giữ kết nối."
+                    : "Đang truy vấn dữ liệu POS Center. Vui lòng giữ kết nối."
                 }
                 className="text-xs text-left w-full mt-2"
               />
@@ -1472,7 +1385,7 @@ export const Orders: React.FC = () => {
           <div className="p-12 text-center bg-white rounded-xl shadow-sm border border-slate-200 my-4 flex flex-col items-center justify-center gap-4">
             <Empty description={`Không thể tìm thấy hoặc tải chi tiết chứng từ ${receiptParam}`} />
             <Button type="primary" onClick={handleCloseDetail}>
-              Quay lại danh sách
+              Quay lại
             </Button>
           </div>
         )}
@@ -1744,72 +1657,6 @@ export const Orders: React.FC = () => {
             </Col>
           </Row>
         </Form>
-      </Modal>
-
-      {/* Modal Nạp JSONB từ Backend */}
-      <Modal
-        title={
-          <div className="flex items-center gap-2 text-purple-700">
-            <FileTextOutlined />
-            <span>Nạp / Nhập JSONB Chứng từ Bán hàng từ Backend</span>
-          </div>
-        }
-        open={isJsonbModalOpen}
-        onCancel={() => setIsJsonbModalOpen(false)}
-        onOk={handleImportJsonb}
-        okText="Map & Nạp vào Bảng"
-        cancelText="Đóng"
-        okButtonProps={{ className: 'bg-purple-600 font-bold' }}
-        width={720}
-      >
-        <div className="space-y-3 pt-2">
-          <div className="flex justify-between items-center text-xs text-slate-600 bg-purple-50 p-2.5 rounded-lg border border-purple-100">
-            <span>Dán đối tượng JSONB đơn lẻ hoặc Mảng các đối tượng JSONB từ CSDL / API. System sẽ tự động mapping chính xác tất cả các trường!</span>
-            <Button 
-              size="small" 
-              type="dashed" 
-              className="text-purple-700 border-purple-300 font-medium shrink-0"
-              onClick={() => setJsonbInputText(JSON.stringify(sampleBackendJsonbOrder, null, 2))}
-            >
-              Dán mẫu JSONB của tôi
-            </Button>
-          </div>
-
-          <Input.TextArea
-            rows={12}
-            value={jsonbInputText}
-            onChange={(e) => setJsonbInputText(e.target.value)}
-            placeholder={`{
-  "siteCode": "1198",
-  "receiptNumber": "0001K7PX1270726",
-  "invoiceNumber": "C26MAM20128",
-  "payment": {
-    "paymentMethod": "ZALOPAY",
-    "bankCode": "VIETQR",
-    "transactionStatus": "SUCCESS"
-  },
-  "customer": {
-    "customerCode": "BI7FAT9EMLVLMYIVCS",
-    "customerName": "Thúy",
-    "phoneNumber": "0965986397"
-  },
-  "employee": {
-    "employeeCode": "BT009458",
-    "employeeName": "Nguyễn Thị Thuý Quyên"
-  },
-  "quantity": 2,
-  "totalDiscount": 2,
-  "promotionNote": "Loyalty:...,GotIt:..., Promotion(GIFT_VOUCHER)...",
-  "totalAmount": 100000,
-  "shiftName": "Ca Sáng",
-  "transactionType": "PXHH",
-  "transactionDateTime": "2026-07-27T09:23:45",
-  "statusSap": false,
-  "status": null
-}`}
-            className="font-mono text-xs"
-          />
-        </div>
       </Modal>
     </PageContainer>
   );

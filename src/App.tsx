@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ConfigProvider, theme, App as AntdApp, Spin } from 'antd';
 import viVN from 'antd/locale/vi_VN';
 import { AuthProvider, useAuth } from 'react-oidc-context';
@@ -8,6 +8,7 @@ import { Error401, Error403, Error404, Error500, Error503, Maintenance, Upgradin
 import { initAuditLogger } from './utils/auditLogger';
 import { TOKEN_STORAGE_KEY } from './services/authStorage';
 import { clearAppSession, createAppSession } from './services/appSession';
+import { siteService } from './services/siteService';
 
 const DashboardLayout = React.lazy(() => import('./layouts/DashboardLayout'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
@@ -23,6 +24,7 @@ const Login = React.lazy(() => import('./pages/Login'));
 const VatConfig = React.lazy(() => import('./pages/VatConfig'));
 
 const REDIRECT_LOCK_KEY = '@@WEB_POS_OIDC_REDIRECTING';
+const AUTH_RETURN_URL_KEY = '@@WEB_POS_AUTH_RETURN_URL';
 
 const DEFAULT_ALLOWED_URLS = [
   '/',
@@ -63,7 +65,7 @@ function FullScreenLoading() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 text-slate-700">
       <div className="flex items-center gap-3 text-sm font-medium text-slate-700">
         <Spin size="small" />
-        <span>Đang điều hướng xác thực SSO...</span>
+        <span>Đang xác thực phiên đăng nhập SSO...</span>
       </div>
     </div>
   );
@@ -82,6 +84,43 @@ function buildUserSession(authUser: ReturnType<typeof extractOidcUser>): UserSes
     token: authUser.token,
     isExpired: false,
   };
+}
+
+function getReturnPathFromLocation(location: ReturnType<typeof useLocation>) {
+  return `${location.pathname}${location.search}${location.hash}`;
+}
+
+function normalizeReturnPath(value: string | null | undefined) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/';
+
+  const lowerValue = value.toLowerCase();
+  if (
+    lowerValue.startsWith('/login')
+    || lowerValue.startsWith('/signin-oidc')
+    || lowerValue.startsWith('/signout-callback-oidc')
+  ) {
+    return '/';
+  }
+
+  return value;
+}
+
+function RequireAuthenticatedLayout({
+  user,
+  children,
+}: {
+  user: UserSession | null;
+  children: React.ReactNode;
+}) {
+  const location = useLocation();
+
+  if (!user) {
+    const returnPath = normalizeReturnPath(getReturnPathFromLocation(location));
+    sessionStorage.setItem(AUTH_RETURN_URL_KEY, returnPath);
+    return <Navigate to={`/login?returnUrl=${encodeURIComponent(returnPath)}`} replace />;
+  }
+
+  return <>{children}</>;
 }
 
 function AppContent({ themeMode, setThemeMode, layout, setLayout }: any) {
@@ -110,8 +149,20 @@ function AppContent({ themeMode, setThemeMode, layout, setLayout }: any) {
     }
   }, [auth.user?.access_token]);
 
+  useEffect(() => {
+    if (!auth.isAuthenticated || !auth.user?.access_token) return;
+
+    siteService.refreshTenantBranches().catch((err) => {
+      console.warn('Refresh tenant branches error:', err);
+    });
+  }, [auth.isAuthenticated, auth.user?.access_token]);
+
   const handleLogout = async () => {
     sessionStorage.removeItem(REDIRECT_LOCK_KEY);
+    sessionStorage.setItem(
+      AUTH_RETURN_URL_KEY,
+      normalizeReturnPath(`${window.location.pathname}${window.location.search}${window.location.hash}`)
+    );
     await clearAppSession();
 
     try {
@@ -160,18 +211,16 @@ function AppContent({ themeMode, setThemeMode, layout, setLayout }: any) {
           <Route
             path="/"
             element={
-              user ? (
+              <RequireAuthenticatedLayout user={user}>
                 <DashboardLayout
-                  user={user}
-                  onLogout={handleLogout}
-                  themeMode={themeMode}
-                  setThemeMode={setThemeMode}
-                  layout={layout}
-                  setLayout={setLayout}
-                />
-              ) : (
-                <Navigate to="/login" replace />
-              )
+                    user={user!}
+                    onLogout={handleLogout}
+                    themeMode={themeMode}
+                    setThemeMode={setThemeMode}
+                    layout={layout}
+                    setLayout={setLayout}
+                  />
+              </RequireAuthenticatedLayout>
             }
           >
             <Route index element={<Dashboard />} />
@@ -268,8 +317,10 @@ export default function App() {
   }, [layout]);
 
   const onSigninCallback = () => {
+    const returnPath = normalizeReturnPath(sessionStorage.getItem(AUTH_RETURN_URL_KEY));
     sessionStorage.removeItem(REDIRECT_LOCK_KEY);
-    window.history.replaceState({}, document.title, '/');
+    sessionStorage.removeItem(AUTH_RETURN_URL_KEY);
+    window.history.replaceState({}, document.title, returnPath);
   };
 
   const onSignoutCallback = async () => {
@@ -278,7 +329,12 @@ export default function App() {
     localStorage.removeItem('access_token');
     localStorage.removeItem('@@WEB_POS_PORTAL');
     sessionStorage.removeItem(REDIRECT_LOCK_KEY);
-    window.history.replaceState({}, document.title, '/login');
+    const returnPath = normalizeReturnPath(sessionStorage.getItem(AUTH_RETURN_URL_KEY));
+    window.history.replaceState(
+      {},
+      document.title,
+      `/login?returnUrl=${encodeURIComponent(returnPath)}`
+    );
   };
 
   return (

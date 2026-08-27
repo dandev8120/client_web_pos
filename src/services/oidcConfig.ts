@@ -13,7 +13,7 @@ const getOrigin = () => {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return window.location.origin;
   }
-  return import.meta.env.VITE_APP_ORIGIN || "https://localhost:44374";
+  return import.meta.env.VITE_APP_ORIGIN;
 };
 
 export const oidcConfig: AuthProviderProps = {

@@ -188,6 +188,7 @@ export interface DataType {
   quantity: number; // Lượng hàng
   lineDiscount?: number; // Chiết khấu
   totalDiscount?: number; // Chiết khấu (từ field totalDiscount)
+  discountPercentage?: number; // % chiết khấu
   discount: number; // Tổng giảm giá
   discountsList?: string[]; // Nhiều mã giảm giá
   discountType?: string; // Loại chiết khấu
@@ -210,8 +211,10 @@ export interface DataType {
 export interface StoreInfo {
   name: string;
   code: string;
+  site: string;
   branch: string;
   address: string;
+  addressLine: string; // Địa chỉ công ty
   hotline: string;
   email: string;
   website: string;
@@ -297,11 +300,10 @@ export interface OrderItem {
   sku: string;
   barcode: string;
   category: string;
-  size: string;
-  color: string;
   unit: string;
   quantity: number;
   price: number;
+  discountPercentage: number;
   discount: number;
   vat: number;
   total: number;
@@ -319,6 +321,7 @@ export interface TotalSummary {
   totalAmount: string;
   amountPaid: string;
   amountDue: string;
+  totalQuantity: string;
 }
 
 export interface DeliveryInfo {
@@ -373,6 +376,7 @@ export interface ReceiptVoucherInfo {
   caseCode: string;
   documentNo: string;
   uuid: string;
+  originalUuid: string;
   salesChannel: string;
   createdAt: string;
 }

@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Button, Space, Divider, App, Tag, Timeline, Modal, Tooltip } from 'antd';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  FileTextOutlined, 
-  CopyOutlined, 
-  PrinterOutlined, 
-  UpOutlined, 
-  DownOutlined, 
-  GiftOutlined, 
-  TableOutlined, 
-  TeamOutlined, 
-  HistoryOutlined, 
+import {
+  FileTextOutlined,
+  CopyOutlined,
+  PrinterOutlined,
+  UpOutlined,
+  DownOutlined,
+  GiftOutlined,
+  TableOutlined,
+  TeamOutlined,
+  HistoryOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
   DollarOutlined,
@@ -30,6 +30,7 @@ import {
 import { DataType } from './orderTypes';
 import { getOrderDetailFull, generateVatLink } from './orderHelpers';
 import { StatusIndicator } from './StatusIndicator';
+import { useSearchParams } from 'react-router-dom';
 import { PermissionGuard } from '../PermissionGuard';
 import { PrintInvoice } from '../PrintInvoice';
 
@@ -40,19 +41,26 @@ interface OrderDetailViewProps {
 
 export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint }) => {
   const { message } = App.useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
   const detail = getOrderDetailFull(order);
 
+  const handleSyncData = () => {
+    searchParams.set('forceRefresh', 'true');
+    setSearchParams(searchParams);
+    message.success('Đã gửi yêu cầu đồng bộ.');
+  };
+
   const rawPromoNote = detail.rawJsonb?.promotions?.promotionNote || (order as Record<string, any>)?.promotionNote || order?.promotion || '';
-  
+
   const parsePromoNoteLines = (note: string): string[] => {
     if (!note || note === 'Không' || note === 'N/A') return [];
     const commaParts = note.split(',');
     const lines: string[] = [];
-    
+
     commaParts.forEach((part, idx) => {
       const trimmed = part.trim();
       if (!trimmed) return;
-      
+
       if (trimmed.includes('-')) {
         const subParts = trimmed.split('-');
         if (subParts.length > 1) {
@@ -74,13 +82,13 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
     });
     return lines;
   };
-  
+
   const [collapsedCards, setCollapsedCards] = useState<{ [key: string]: boolean }>({});
   const [selectedWorkflowStep, setSelectedWorkflowStep] = useState<any | null>(null);
   const [executingStep, setExecutingStep] = useState<number | null>(null);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [activeWireSegment, setActiveWireSegment] = useState<number | null>(null);
-  const [isPrintOpen, setIsPrintOpen] = useState<boolean>(false);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState<boolean>(false);
 
   const toggleCard = (key: string) => {
     setCollapsedCards(prev => ({ ...prev, [key]: !prev[key] }));
@@ -95,7 +103,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
 
     const stepInterval = setInterval(() => {
       setCompletedSteps(prev => Array.from(new Set([...prev, curr])));
-      
+
       if (curr < 5) {
         setActiveWireSegment(curr);
         setTimeout(() => {
@@ -115,20 +123,20 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
   const isPOSOrder = (detail?.order?.salesChannel || '').includes('POS') || String(order?.storeId || '').startsWith('ST-');
 
   const promotionsList = (order?.discount || 0) > 0 ? [
-    { 
-      name: order?.promotion && order.promotion !== 'Không' ? order.promotion : 'Chiết khấu bán lẻ tại quầy', 
-      code: `PROMO-${String(order?.id || '').split('-')[2] || '001'}`, 
-      value: Math.floor((order?.discount || 0) * 0.5) 
+    {
+      name: order?.promotion && order.promotion !== 'Không' ? order.promotion : 'Chiết khấu bán lẻ tại quầy',
+      code: `PROMO-${String(order?.id || '').split('-')[2] || '001'}`,
+      value: Math.floor((order?.discount || 0) * 0.5)
     },
-    { 
-      name: `Đặc quyền Thành viên ${detail.customer.memberRank}`, 
-      code: 'LOYALTY-TIER-DISC', 
-      value: Math.floor((order.discount || 0) * 0.3) 
+    {
+      name: `Đặc quyền Thành viên ${detail.customer.memberRank}`,
+      code: 'LOYALTY-TIER-DISC',
+      value: Math.floor((order.discount || 0) * 0.3)
     },
-    { 
-      name: 'Chiết khấu ưu đãi thanh toán', 
-      code: 'EPAY-PROMO', 
-      value: (order.discount || 0) - Math.floor((order.discount || 0) * 0.5) - Math.floor((order.discount || 0) * 0.3) 
+    {
+      name: 'Chiết khấu ưu đãi thanh toán',
+      code: 'EPAY-PROMO',
+      value: (order.discount || 0) - Math.floor((order.discount || 0) * 0.5) - Math.floor((order.discount || 0) * 0.3)
     }
   ].filter(p => p.value > 0) : [];
 
@@ -153,12 +161,21 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
             <span className="text-xs text-slate-400 font-semibold">Trạng thái:</span>
             <StatusIndicator status={order.status} type="order" />
           </div>
+          <Divider type="vertical" className="bg-slate-200 h-4 hidden sm:inline-block" />
+          <Tooltip title="Đồng bộ lại dữ liệu">
+            <Button
+              size="small"
+              type="text"
+              icon={<SyncOutlined className="text-blue-500" />}
+              onClick={handleSyncData}
+            >Đồng bộ</Button>
+          </Tooltip>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           <PermissionGuard buttonCode="sales.orders.btn_export">
-            <Button 
-              icon={<CopyOutlined />} 
+            <Button
+              icon={<CopyOutlined />}
               onClick={() => {
                 const link = generateVatLink(order);
                 navigator.clipboard.writeText(link);
@@ -171,9 +188,9 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
           </PermissionGuard>
 
           <PermissionGuard buttonCode="sales.orders.btn_export">
-            <Button 
-              type="primary" 
-              className="bg-blue-600 hover:bg-blue-700 font-medium text-xs flex-1 sm:flex-initial" 
+            <Button
+              type="primary"
+              className="bg-blue-600 hover:bg-blue-700 font-medium text-xs flex-1 sm:flex-initial"
               icon={<FileTextOutlined />}
               onClick={() => {
                 const link = generateVatLink(order);
@@ -185,12 +202,11 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
           </PermissionGuard>
 
           <PermissionGuard buttonCode="sales.orders.btn_print">
-            <Button 
+            <Button
               icon={<PrinterOutlined />}
               type="primary"
               className="bg-emerald-600 hover:bg-emerald-700 font-semibold text-xs flex-1 sm:flex-initial"
               onClick={() => {
-                setIsPrintOpen(true);
                 if (onPrint) onPrint(order);
               }}
             >
@@ -201,12 +217,12 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
       </div>
 
       {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[3fr_1fr] gap-4 sm:gap-6">
         {/* Left Column - Invoice & Items details (8 out of 12) */}
-        <div className="lg:col-span-8 space-y-4 sm:space-y-6">
+        <div className="min-w-0 space-y-4 sm:space-y-6">
           {/* 1. Hóa Đơn Bán Lẻ Centric Document Card */}
           <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-            <div 
+            <div
               className="flex justify-between items-center px-4 sm:px-5 py-3.5 bg-slate-50 border-b border-slate-100 cursor-pointer select-none"
               onClick={() => toggleCard('invoiceMeta')}
             >
@@ -214,10 +230,10 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                 <FileTextOutlined className="text-blue-600 text-base" />
                 <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Thông tin hóa đơn chứng từ</span>
               </div>
-              <Button 
-                type="text" 
-                size="small" 
-                icon={collapsedCards.invoiceMeta ? <DownOutlined /> : <UpOutlined />} 
+              <Button
+                type="text"
+                size="small"
+                icon={collapsedCards.invoiceMeta ? <DownOutlined /> : <UpOutlined />}
                 onClick={(e) => { e.stopPropagation(); toggleCard('invoiceMeta'); }}
               />
             </div>
@@ -232,32 +248,34 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                 >
                   <div className="p-4 sm:p-6 border-t border-slate-100 space-y-4 sm:space-y-6">
                     {/* Store Header & Receipt Header Info */}
-                    <div className="flex flex-col md:flex-row justify-between gap-4 sm:gap-6 pb-4 sm:pb-6 border-b border-slate-100">
+                    <div className="flex flex-col md:flex-row gap-6 pb-4 sm:pb-6 border-b border-slate-100">
                       {/* Store info - Hóa đơn bán lẻ */}
-                      <div className="space-y-2 max-w-full md:max-w-md">
+                      <div className="space-y-2 flex-1 min-w-0">
                         <div className="flex items-center gap-3">
                           <img src={detail.store.logo} alt="Logo" className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover border border-slate-200 shrink-0" referrerPolicy="no-referrer" />
                           <div>
-                            <h3 className="font-bold text-slate-800 text-sm">Hóa đơn bán lẻ</h3>
-                            <p className="text-[11px] text-slate-400 font-semibold">{detail.store.name}</p>
+                            <h3 className="font-bold text-slate-800 text-sm">Hóa đơn {detail.receiptVoucher.voucherType}</h3>
+                            <p className="text-xs text-slate-400 font-semibold">{detail.store.name}</p>
                           </div>
                         </div>
-                        <div className="text-xs text-slate-500 space-y-1.5 pt-1">
-                          <div><span className="font-semibold text-slate-600">Số chứng từ:</span> <span className="font-mono font-bold text-blue-600">{detail.order.orderId}</span></div>
-                          <div><span className="font-semibold text-slate-600">Tên công ty:</span> {detail.store.name}</div>
-                          <div><span className="font-semibold text-slate-600">Địa chỉ:</span> {detail.store.address}</div>
+                        <div className="text-sm text-slate-600 space-y-1.5 pt-1">
+                          <div><span className="font-bold text-slate-800">Tên công ty:</span> {detail.store.name}</div>
+                          <div><span className="font-bold text-slate-800">Địa chỉ công ty:</span> {detail.store.addressLine}</div>
+                          <div><span className="font-bold text-slate-800">Mã cửa hàng:</span> {detail.store.site}</div>
+                          <div><span className="font-bold text-slate-800">Tên cửa hàng:</span> {detail.store.branch}</div>
+                          <div><span className="font-bold text-slate-800">Địa chỉ cửa hàng:</span> {detail.store.address}</div>
                           <div className="flex flex-wrap gap-x-4 gap-y-1">
-                            <div><span className="font-semibold text-slate-600">MST:</span> {detail.store.taxCode}</div>
-                            <div><span className="font-semibold text-slate-600">Mã HĐ:</span> {detail.store.invoiceCode}</div>
+                            <div><span className="font-bold text-slate-800">MST:</span> {detail.store.taxCode}</div>
+                            <div><span className="font-bold text-slate-800">Mã HĐ:</span> {detail.store.invoiceCode}</div>
                           </div>
+                          <div><span className="font-bold text-slate-800">Email:</span> {detail.store.email}</div>
                         </div>
                       </div>
-
                       {/* Receipt Meta Info - Phiếu thu */}
                       <div className="bg-slate-50/80 p-3.5 sm:p-4 rounded-xl border border-slate-100/80 space-y-2 w-full md:w-72 shrink-0">
                         <div className="text-xs font-bold text-slate-700 border-b border-slate-200/60 pb-1.5 mb-2 uppercase tracking-wide flex justify-between items-center">
                           <span>Phiếu thu</span>
-                          <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-semibold">{detail.receiptVoucher.voucherType}</span>
+                          <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-semibold">{detail.receiptVoucher.voucherType}</span>
                         </div>
                         <div className="flex justify-between text-xs">
                           <span className="text-slate-400">Loại hình:</span>
@@ -273,7 +291,11 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                         </div>
                         <div className="flex justify-between text-xs">
                           <span className="text-slate-400">Uuid:</span>
-                          <span className="font-mono text-[10px] text-slate-600 truncate max-w-[150px]" title={detail.receiptVoucher.uuid}>{detail.receiptVoucher.uuid}</span>
+                          <span className="font-mono font-bold text-slate-800" title={detail.receiptVoucher.uuid}>{detail.receiptVoucher.uuid}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-400">Original Uuid:</span>
+                          <span className="font-mono font-bold text-slate-800" title={detail.receiptVoucher.originalUuid}>{detail.receiptVoucher.originalUuid}</span>
                         </div>
                         <div className="flex justify-between text-xs">
                           <span className="text-slate-400">Số hóa đơn:</span>
@@ -303,7 +325,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                           <DetailRow label="Quận / Huyện" value={detail.customer.address === 'Không có dữ liệu' ? <span className="text-slate-400 italic">Không có dữ liệu</span> : detail.customer.address} />
                           <DetailRow label="Ngày đăng ký" value={detail.rawJsonb?.customer?.registrationDate ? String(detail.rawJsonb.customer.registrationDate).replace('T', ' ') : <span className="text-slate-400 italic">Không có dữ liệu</span>} />
                           <DetailRow label="Hạng thành viên" value={
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            <span className={`px-2 py-0.5 rounded text-[12px] font-bold border ${
                               detail.customer.memberRank === 'Platinum' || detail.customer.memberRank === 'Kim cương' ? 'bg-purple-50 text-purple-700 border-purple-100' :
                               detail.customer.memberRank === 'Vàng' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-slate-50 text-slate-600 border-slate-200'
                             }`}>{detail.customer.memberRank}</span>
@@ -351,7 +373,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
 
           {/* 2. Products List Card */}
           <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-            <div 
+            <div
               className="flex justify-between items-center px-4 sm:px-5 py-3.5 bg-slate-50 border-b border-slate-100 cursor-pointer select-none"
               onClick={() => toggleCard('products')}
             >
@@ -359,10 +381,10 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                 <TableOutlined className="text-blue-600 text-base" />
                 <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Danh sách chi tiết mặt hàng</span>
               </div>
-              <Button 
-                type="text" 
-                size="small" 
-                icon={collapsedCards.products ? <DownOutlined /> : <UpOutlined />} 
+              <Button
+                type="text"
+                size="small"
+                icon={collapsedCards.products ? <DownOutlined /> : <UpOutlined />}
                 onClick={(e) => { e.stopPropagation(); toggleCard('products'); }}
               />
             </div>
@@ -378,38 +400,48 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                   <div className="p-4 sm:p-6 border-t border-slate-100 space-y-4 sm:space-y-6">
                     {/* Responsive table wrapper for touch devices */}
                     <div className="overflow-x-auto border border-slate-100 rounded-xl bg-white w-full">
-                      <table className="w-full text-left border-collapse text-xs min-w-[650px]">
+                      <table className="w-full table-auto text-left border-collapse text-xs">
                         <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
-                            <th className="p-3">Mặt hàng</th>
-                            <th className="p-3">SKU / Barcode</th>
-                            <th className="p-3 text-center">Phân loại / Kích cỡ</th>
-                            <th className="p-3 text-center">ĐVT</th>
-                            <th className="p-3 text-center">Số lượng</th>
-                            <th className="p-3 text-right">Đơn giá</th>
-                            <th className="p-3 text-right">Chiết khấu SP</th>
-                            <th className="p-3 text-right">VAT</th>
-                            <th className="p-3 text-right">Thành tiền</th>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold uppercase tracking-wider text-[12px]">
+                            <th className="px-2 py-3 text-center rounded-tl-lg">Mã hàng/SKU</th>
+                            <th className="px-2 py-3 text-center">Barcode</th>
+                            <th className="px-2 py-3 text-center">Mặt hàng</th>
+                            <th className="px-2 py-3 text-center">Phân loại / Mã nhóm</th>
+                            <th className="px-2 py-3 text-center">ĐVT</th>
+                            <th className="px-2 py-3 text-center">Số lượng</th>
+                            <th className="px-2 py-3 text-center">Đơn giá</th>
+                            <th className="px-2 py-3 text-center">% Chiết khấu</th>
+                            <th className="px-2 py-3 text-center">Tiền Chiết khấu</th>
+                            <th className="px-2 py-3 text-center">Thuế GTGT(VAT)</th>
+                            <th className="px-2 py-3 text-center">Thành tiền</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-slate-600 font-medium">
                           {detail.items.map((item, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50/50">
-                              <td className="p-3 font-bold text-slate-800 text-xs">{item.productName}</td>
-                              <td className="p-3 font-mono text-slate-400 leading-tight">
-                                <div>SKU: {item.sku}</div>
-                                <div>BC: {item.barcode}</div>
+                            <tr key={idx} className={`hover:bg-blue-50/60 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}`}>
+                              <td className="px-2 py-3 text-center">
+                                <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono text-[12px] font-bold">{item.sku}</span>
                               </td>
-                              <td className="p-3 text-center font-mono text-[11px]">
-                                <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 mr-1">{item.category}</span>
-                                <span className="bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded">{item.size} / {item.color}</span>
+                              <td className="px-2 py-3 text-center">
+                                <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono text-[12px]">{item.barcode}</span>
                               </td>
-                              <td className="p-3 text-center text-slate-500">{item.unit}</td>
-                              <td className="p-3 text-center font-bold text-slate-800 text-xs">{item.quantity}</td>
-                              <td className="p-3 text-right font-semibold text-slate-700">{item.price.toLocaleString('vi-VN')} đ</td>
-                              <td className="p-3 text-right text-rose-500 font-semibold">-{item.discount.toLocaleString('vi-VN')} đ</td>
-                              <td className="p-3 text-right text-slate-500">{item.vat.toLocaleString('vi-VN')} đ</td>
-                              <td className="p-3 text-right font-bold text-blue-600 text-xs">{item.total.toLocaleString('vi-VN')} đ</td>
+                              <td className="px-2 py-3 font-bold text-slate-800 text-xs">{item.productName}</td>
+                              <td className="px-2 py-3 text-center">
+                                <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-mono text-[12px]">{item.category}</span>
+                              </td>
+                              <td className="px-2 py-3 text-center text-slate-500 text-xs">{item.unit}</td>
+                              <td className="px-2 py-3 text-center">
+                                <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold text-xs">{item.quantity}</span>
+                              </td>
+                              <td className="px-2 py-3 text-center font-semibold text-slate-700 text-xs">{item.price.toLocaleString('vi-VN')} đ</td>
+                              <td className="px-2 py-3 text-center">
+                                <span className="bg-rose-100 text-rose-600 px-2 py-0.5 rounded font-semibold text-xs">{item.discountPercentage}%</span>
+                              </td>
+                              <td className="px-2 py-3 text-center text-rose-500 font-semibold text-xs">-{item.discount.toLocaleString('vi-VN')} đ</td>
+                              <td className="px-2 py-3 text-center text-slate-500 text-xs">{item.vat.toLocaleString('vi-VN')} đ</td>
+                              <td className="px-2 py-3 text-center">
+                                <span className="bg-blue-600 text-white px-2 py-0.5 rounded font-bold text-xs">{item.total.toLocaleString('vi-VN')} đ</span>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -417,9 +449,9 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                     </div>
 
                     {/* Calculations & Multiple Promotions Panel */}
-                    <div className="flex flex-col md:flex-row justify-between items-start gap-4 sm:gap-6 pt-4 border-t border-slate-100">
+                    <div className="flex flex-col md:flex-row items-start gap-6 pt-4 border-t border-slate-100">
                       {/* Multiple Promotions block */}
-                      <div className="w-full md:max-w-md space-y-3">
+                      <div className="w-full md:flex-1 min-w-0 space-y-3">
                         <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center justify-between border-b border-slate-100 pb-2">
                           <span className="flex items-center gap-1.5">
                             <GiftOutlined className="text-rose-500 animate-bounce" />
@@ -433,23 +465,23 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                               onClick={() => {
                                 const textToCopy = parsePromoNoteLines(rawPromoNote).join('\n');
                                 navigator.clipboard.writeText(textToCopy);
-                                message.success('Đã sao chép danh sách mã khuyến mãi!');
+                                message.success('Đã sao chép mã khuyến mãi!');
                               }}
-                              className="p-0 text-[10px] text-rose-600 font-semibold hover:bg-rose-50 px-1.5 rounded"
+                              className="p-0 text-[12px] text-rose-600 font-semibold hover:bg-rose-50 px-1.5 rounded"
                             >
                               Sao chép mã
                             </Button>
                           )}
                         </h4>
-                        
+
                         {/* Render rawPromoNote formatted line-by-line if available */}
                         {parsePromoNoteLines(rawPromoNote).length > 0 ? (
                           <div className="bg-rose-50/70 text-rose-900 p-3 rounded-xl border border-rose-200/80 font-mono text-xs space-y-1 shadow-sm">
-                            <div className="text-[10px] uppercase text-rose-700 font-sans font-bold border-b border-rose-200/60 pb-1 mb-1.5 flex justify-between">
+                            <div className="text-[12px] uppercase text-rose-700 font-sans font-bold border-b border-rose-200/60 pb-1 mb-1.5 flex justify-between">
                               <span>Mã Khuyến Mãi Áp Dụng:</span>
                               <span className="text-rose-600 font-semibold">{parsePromoNoteLines(rawPromoNote).length} dòng</span>
                             </div>
-                            <div className="space-y-0.5 select-all">
+                            <div className="space-y-0.5">
                               {parsePromoNoteLines(rawPromoNote).map((line, idx) => (
                                 <div key={idx} className="hover:bg-rose-100/70 px-1.5 py-0.5 rounded text-rose-800 font-medium tracking-wide">
                                   {line}
@@ -463,7 +495,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                               <div key={idx} className="bg-rose-50/40 hover:bg-rose-50 border border-rose-100/50 rounded-lg p-3 flex justify-between items-center text-xs transition-colors">
                                 <div>
                                   <div className="font-bold text-rose-700">{promo.name}</div>
-                                  <div className="text-[10px] text-rose-400 font-mono mt-0.5">Mã: {promo.code}</div>
+                                  <div className="text-[12px] text-rose-400 font-mono mt-0.5">Mã: {promo.code}</div>
                                 </div>
                                 <span className="text-rose-600 font-bold">-{promo.value.toLocaleString('vi-VN')} đ</span>
                               </div>
@@ -477,7 +509,11 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                       </div>
 
                       {/* Right Side: Totals Summary block */}
-                      <div className="w-full md:w-80 space-y-2 text-xs">
+                      <div className="w-full md:flex-1 min-w-0 space-y-3 text-sm">
+                        <div className="flex justify-between py-1 border-b border-slate-50">
+                          <span className="text-slate-400 font-medium">Tổng lượng:</span>
+                          <span className="text-slate-700 font-semibold">{detail.totals.totalQuantity}</span>
+                        </div>
                         <div className="flex justify-between py-1 border-b border-slate-50">
                           <span className="text-slate-400 font-medium">Cộng tiền hàng:</span>
                           <span className="text-slate-700 font-semibold">{detail.totals.subtotal}</span>
@@ -493,46 +529,46 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                           <span className="text-slate-700 font-semibold">{detail.totals.vatTotal}</span>
                         </div>
                         <div className="border-t border-dashed border-slate-200 pt-3 my-2 flex justify-between items-center">
-                          <span className="font-bold text-slate-800 text-xs sm:text-sm">TỔNG CỘNG THANH TOÁN:</span>
-                          <span className="text-blue-600 font-extrabold text-sm sm:text-base">{detail.totals.totalAmount}</span>
+                          <span className="font-bold text-slate-800">TỔNG CỘNG THANH TOÁN:</span>
+                          <span className="text-blue-600 font-extrabold">{detail.totals.totalAmount}</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 italic bg-slate-50 p-2 rounded border border-slate-100/80">
+                        <div className="text-sm text-slate-500 italic bg-slate-50 p-2 rounded border border-slate-100/80">
                           <span className="font-semibold text-slate-600">Bằng chữ:</span> {detail.rawJsonb?.receiptTotals?.totalAmountWithTaxInWords || 'Không có dữ liệu'}
                         </div>
-                        
+
                         <div className="bg-slate-50/50 rounded-xl p-3 border border-slate-100/80 mt-3 space-y-2">
-                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1.5 flex justify-between items-center">
-                            <span>Phân rã Thanh toán (Split Payment)</span>
-                            <span className="font-mono text-blue-600 bg-blue-50 px-1 py-0.2 rounded text-[8px]">Hỗn Hợp</span>
+                          <div className="text-sm font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1.5 flex justify-between items-center">
+                            <span>Phương thức Thanh toán (Payment)</span>
+                            <span className="font-mono text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded text-xs">TM/ATM/CK/QR</span>
                           </div>
                           {detail.payment.splits && detail.payment.splits.length > 0 ? (
                             <div className="space-y-1.5 border-b border-dashed border-slate-100 pb-2">
                               {detail.payment.splits.map((s, sIdx) => (
-                                <div key={sIdx} className="flex justify-between items-center text-xs">
+                                <div key={sIdx} className="flex justify-between items-center text-sm">
                                   <div className="flex flex-col">
                                     <span className="font-semibold text-slate-700">{s.method}</span>
-                                    {s.reference !== 'N/A' && <span className="text-[9px] text-slate-400 font-mono">Ref: {s.reference}</span>}
+                                    {s.reference !== 'N/A' && <span className="text-xs text-slate-400 font-mono">Ref: {s.reference}</span>}
                                   </div>
                                   <span className="font-bold text-slate-800">{s.amount.toLocaleString('vi-VN')} đ</span>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <div className="flex justify-between border-b border-dashed border-slate-100 pb-2 text-xs">
+                            <div className="flex justify-between border-b border-dashed border-slate-100 pb-2 text-sm">
                               <span className="text-slate-400">Hình thức thanh toán:</span>
                               <span className="font-bold text-slate-700">{detail.payment.method}</span>
                             </div>
                           )}
                           <div className="pt-1.5 space-y-1">
-                            <div className="flex justify-between text-xs">
+                            <div className="flex justify-between text-sm">
                               <span className="text-slate-400">Khách đã thanh toán:</span>
                               <span className="font-bold text-blue-600">{detail.payment.amountPaid}</span>
                             </div>
-                            <div className="flex justify-between text-xs">
+                            <div className="flex justify-between text-sm">
                               <span className="text-slate-400">Tiền thối lại:</span>
                               <span className="font-semibold text-slate-800">{detail.payment.changeAmount}</span>
                             </div>
-                            <div className="flex justify-between pt-1 border-t border-dashed border-slate-200 text-xs">
+                            <div className="flex justify-between pt-1 border-t border-dashed border-slate-200 text-sm">
                               <span className="text-slate-400">Trạng thái:</span>
                               <span className="font-bold text-emerald-600">{detail.payment.paymentStatus}</span>
                             </div>
@@ -548,10 +584,10 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
         </div>
 
         {/* Right Column - Management & Operation Logs (4 out of 12) */}
-        <div className="lg:col-span-4 space-y-4 sm:space-y-6">
+        <div className="min-w-0 space-y-4 sm:space-y-6">
           {/* 3. Internal Management Info Card */}
           <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-            <div 
+            <div
               className="flex justify-between items-center px-4 sm:px-5 py-3.5 bg-slate-50 border-b border-slate-100 cursor-pointer select-none"
               onClick={() => toggleCard('management')}
             >
@@ -559,10 +595,10 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                 <TeamOutlined className="text-blue-600 text-base" />
                 <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Thông tin ca</span>
               </div>
-              <Button 
-                type="text" 
-                size="small" 
-                icon={collapsedCards.management ? <DownOutlined /> : <UpOutlined />} 
+              <Button
+                type="text"
+                size="small"
+                icon={collapsedCards.management ? <DownOutlined /> : <UpOutlined />}
                 onClick={(e) => { e.stopPropagation(); toggleCard('management'); }}
               />
             </div>
@@ -588,7 +624,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
 
           {/* 4. Multi-Stage Workflow Activity Log Card */}
           <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-            <div 
+            <div
               className="flex justify-between items-center px-4 sm:px-5 py-3.5 bg-slate-50 border-b border-slate-100 cursor-pointer select-none"
               onClick={() => toggleCard('logs')}
             >
@@ -596,10 +632,10 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                 <NodeIndexOutlined className="text-blue-600 text-base" />
                 <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">Nhật ký hoạt động</span>
               </div>
-              <Button 
-                type="text" 
-                size="small" 
-                icon={collapsedCards.logs ? <DownOutlined /> : <UpOutlined />} 
+              <Button
+                type="text"
+                size="small"
+                icon={collapsedCards.logs ? <DownOutlined /> : <UpOutlined />}
                 onClick={(e) => { e.stopPropagation(); toggleCard('logs'); }}
               />
             </div>
@@ -739,16 +775,16 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                           <div className="absolute left-[20px] top-[28px] bottom-[28px] w-[5px] -translate-x-1/2 z-0 rounded-full overflow-hidden bg-slate-200 shadow-inner">
                             {/* n8n Wire Gradient */}
                             <div className="absolute inset-0 bg-gradient-to-b from-[#FF6D5A] via-blue-500 via-purple-500 via-cyan-500 to-emerald-500 opacity-90" />
-                            
+
                             {/* Animated Flowing Signal Particle along the cable */}
-                            <motion.div 
+                            <motion.div
                               className="absolute left-0 right-0 h-10 bg-white rounded-full shadow-[0_0_12px_rgba(255,255,255,1)] z-10"
                               initial={{ top: '-15%' }}
                               animate={{ top: ['-15%', '115%'] }}
-                              transition={{ 
-                                duration: executingStep !== null ? 1.0 : 3.0, 
-                                repeat: Infinity, 
-                                ease: 'easeInOut' 
+                              transition={{
+                                duration: executingStep !== null ? 1.0 : 3.0,
+                                repeat: Infinity,
+                                ease: 'easeInOut'
                               }}
                             />
                           </div>
@@ -759,7 +795,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                               const isExecuting = executingStep === step.num;
 
                               return (
-                                <motion.div 
+                                <motion.div
                                   key={step.key}
                                   initial={{ opacity: 0, y: 15 }}
                                   animate={{ opacity: 1, y: 0 }}
@@ -769,7 +805,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                                   {/* Left Node Handle Pin & Icon */}
                                   <div className="relative shrink-0 z-20">
                                     <Tooltip title={`Bấm để test chạy từ Step ${step.num}`} placement="right">
-                                      <button 
+                                      <button
                                         onClick={() => handleRunFromStep(step.num)}
                                         className={`w-10 h-10 rounded-xl ${step.headerBg} flex items-center justify-center cursor-pointer shadow-md hover:scale-110 active:scale-95 transition-all duration-200 border-2 ${isExecuting ? 'border-amber-300 ring-4 ring-amber-200 animate-pulse' : 'border-white'}`}
                                       >
@@ -788,7 +824,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                                   </div>
 
                                   {/* n8n Node Card UI */}
-                                  <div 
+                                  <div
                                     className={`flex-1 bg-white rounded-xl border ${isExecuting ? 'border-amber-400 ring-2 ring-amber-200 shadow-lg' : 'border-slate-200/90'} shadow-xs hover:shadow-md transition-all duration-200 overflow-hidden`}
                                   >
                                     {/* Node Card Body */}
@@ -801,7 +837,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                                         </div>
                                         <div className="mt-1 space-y-0.5">
                                           {step.subItems.map((sub, sIdx) => sub.time ? (
-                                            <p key={sIdx} className="text-[11px] text-slate-500 m-0 flex items-center gap-1.5 font-mono">
+                                            <p key={sIdx} className="text-xs text-slate-500 m-0 flex items-center gap-1.5 font-mono">
                                               <span className="text-slate-400">{sub.label}:</span>
                                               <span className="font-semibold text-slate-700">{sub.time}</span>
                                             </p>
@@ -825,7 +861,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
 
           {/* 5. JSON Chi tiết Card */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div 
+            <div
               className="flex justify-between items-center px-4 sm:px-5 py-3.5 bg-slate-900 text-white cursor-pointer select-none"
               onClick={() => toggleCard('terminal')}
             >
@@ -853,10 +889,10 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                 >
                   Sao chép
                 </Button>
-                <Button 
-                  type="text" 
-                  size="small" 
-                  icon={collapsedCards.terminal ? <DownOutlined className="text-slate-300" /> : <UpOutlined className="text-slate-300" />} 
+                <Button
+                  type="text"
+                  size="small"
+                  icon={collapsedCards.terminal ? <DownOutlined className="text-slate-300" /> : <UpOutlined className="text-slate-300" />}
                   onClick={(e) => { e.stopPropagation(); toggleCard('terminal'); }}
                 />
               </div>
@@ -871,7 +907,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                   transition={{ duration: 0.2 }}
                 >
                   <div className="bg-[#0D1117] p-4 text-xs font-mono relative">
-                    <pre className="text-emerald-400 font-mono text-[11px] leading-relaxed overflow-x-auto max-h-[480px] p-3 rounded-lg bg-slate-950/90 border border-slate-800/90 shadow-inner select-all whitespace-pre">
+                    <pre className="text-emerald-400 font-mono text-xs leading-relaxed overflow-x-auto max-h-[480px] p-3 rounded-lg bg-slate-950/90 border border-slate-800/90 shadow-inner whitespace-pre">
                       {JSON.stringify(detail.rawJsonb || order, null, 2)}
                     </pre>
                   </div>
@@ -881,14 +917,6 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
           </div>
         </div>
       </div>
-
-      <PrintInvoice 
-        open={isPrintOpen} 
-        onClose={() => setIsPrintOpen(false)} 
-        order={order}
-        siteCode={order.storeId || (order as any).siteCode || '1134'}
-        receiptNumber={order.id || (order as any).receiptNumber || ''}
-      />
     </div>
   );
 };

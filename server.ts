@@ -10,12 +10,14 @@ import { createServer as createViteServer } from "vite";
 
 const appEnv = process.env.NODE_ENV || "development";
 const envRoot = process.cwd();
-dotenv.config({ path: path.join(envRoot, ".env.local") });
-dotenv.config({ path: path.join(envRoot, `.env.${appEnv}`), override: true });
+dotenv.config({ path: path.join(envRoot, `.env.${appEnv}`) });
+dotenv.config({ path: path.join(envRoot, ".env.local"), override: true });
 
 const jsonBodyParser = express.json({ limit: "10mb" });
 const formBodyParser = express.urlencoded({ extended: true, limit: "10mb" });
 const sessionCookieName = process.env.APP_SESSION_COOKIE_NAME || "POS_PORTAL_SESSION_ID";
+const csrfCookieName = process.env.APP_CSRF_COOKIE_NAME || "POS_PORTAL_CSRF_TOKEN";
+const csrfHeaderName = "x-csrf-token";
 const sessionMaxAgeSeconds = Number(process.env.APP_SESSION_MAX_AGE_SECONDS || 12 * 60 * 60);
 const appSessions = new Map<string, AppSession>();
 const allowSelfSignedLocalApi =
@@ -23,6 +25,7 @@ const allowSelfSignedLocalApi =
 
 interface AppSession {
   id: string;
+  csrfToken: string;
   accessToken?: string;
   idToken?: string;
   user: Record<string, unknown>;
@@ -41,26 +44,69 @@ function parseCookies(req: express.Request) {
 
     const key = part.slice(0, separatorIndex).trim();
     const value = part.slice(separatorIndex + 1).trim();
-    if (key) cookies[key] = decodeURIComponent(value);
+    if (key) {
+      try {
+        cookies[key] = decodeURIComponent(value);
+      } catch {
+        cookies[key] = value;
+      }
+    }
     return cookies;
   }, {});
 }
 
-function serializeCookie(name: string, value: string, maxAgeSeconds: number, secure: boolean) {
+function serializeCookie(
+  name: string,
+  value: string,
+  maxAgeSeconds: number,
+  secure: boolean,
+  options: { httpOnly?: boolean; sameSite?: "Strict" | "Lax" | "None" } = {}
+) {
   const parts = [
     `${name}=${encodeURIComponent(value)}`,
     "Path=/",
-    "HttpOnly",
-    "SameSite=Lax",
+    `SameSite=${options.sameSite || "Lax"}`,
     `Max-Age=${maxAgeSeconds}`,
   ];
 
+  if (options.httpOnly !== false) parts.push("HttpOnly");
   if (secure) parts.push("Secure");
   return parts.join("; ");
 }
 
-function clearSessionCookie(name: string, secure: boolean) {
-  return serializeCookie(name, "", 0, secure);
+function serializeSessionCookie(session: AppSession, secure: boolean) {
+  return serializeCookie(sessionCookieName, session.id, sessionMaxAgeSeconds, secure, {
+    httpOnly: true,
+    sameSite: "Lax",
+  });
+}
+
+function serializeCsrfCookie(session: AppSession, secure: boolean) {
+  return serializeCookie(csrfCookieName, session.csrfToken, sessionMaxAgeSeconds, secure, {
+    httpOnly: false,
+    sameSite: "Lax",
+  });
+}
+
+function getSessionCookies(session: AppSession, secure: boolean) {
+  return [
+    serializeSessionCookie(session, secure),
+    serializeCsrfCookie(session, secure),
+  ];
+}
+
+function clearCookie(name: string, secure: boolean, httpOnly: boolean) {
+  return serializeCookie(name, "", 0, secure, {
+    httpOnly,
+    sameSite: "Lax",
+  });
+}
+
+function getClearSessionCookies(secure: boolean) {
+  return [
+    clearCookie(sessionCookieName, secure, true),
+    clearCookie(csrfCookieName, secure, false),
+  ];
 }
 
 function sweepExpiredSessions() {
@@ -114,7 +160,65 @@ function getRequestIp(req: express.Request) {
 function setCorsHeaders(res: express.Response) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization, X-CSRF-Token");
+}
+
+function setSecurityHeaders(_req: express.Request, res: express.Response, next: express.NextFunction) {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+}
+
+function isUnsafeMethod(method: string) {
+  return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase());
+}
+
+function isCsrfExempt(req: express.Request) {
+  if (req.method.toUpperCase() === "POST" && req.path === "/api/session") {
+    return true;
+  }
+
+  return req.path.startsWith("/oidc-proxy/");
+}
+
+function timingSafeEquals(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function verifyCsrfToken(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (!isUnsafeMethod(req.method) || isCsrfExempt(req)) {
+    next();
+    return;
+  }
+
+  const session = getAppSession(req);
+  if (!session) {
+    next();
+    return;
+  }
+
+  const csrfHeader = String(req.headers[csrfHeaderName] || "");
+  const csrfCookie = parseCookies(req)[csrfCookieName] || "";
+
+  if (
+    csrfHeader &&
+    csrfCookie &&
+    timingSafeEquals(csrfHeader, session.csrfToken) &&
+    timingSafeEquals(csrfCookie, session.csrfToken)
+  ) {
+    next();
+    return;
+  }
+
+  return res.status(403).json({
+    success: false,
+    code: 403,
+    message: "CSRF token không hợp lệ hoặc đã hết hạn.",
+  });
 }
 
 function hasRequestBody(method: string) {
@@ -346,6 +450,7 @@ async function startServer() {
     server = http.createServer(app);
   }
 
+  app.use(setSecurityHeaders);
   app.use(jsonBodyParser);
   app.use(formBodyParser);
 
@@ -398,6 +503,7 @@ async function startServer() {
     const sessionId = crypto.randomUUID();
     const session: AppSession = {
       id: sessionId,
+      csrfToken: crypto.randomBytes(32).toString("base64url"),
       accessToken: bearerToken,
       idToken: typeof req.body?.idToken === "string" ? req.body.idToken : undefined,
       user: typeof req.body?.user === "object" && req.body.user ? req.body.user : {},
@@ -407,11 +513,34 @@ async function startServer() {
     };
 
     appSessions.set(sessionId, session);
-    res.setHeader("Set-Cookie", serializeCookie(sessionCookieName, sessionId, sessionMaxAgeSeconds, httpsEnabled));
+    res.setHeader("Set-Cookie", getSessionCookies(session, httpsEnabled));
 
     return res.json({
       success: true,
       session: toSessionResponse(session),
+    });
+  });
+
+  app.get("/api/csrf-token", (req, res) => {
+    const session = getAppSession(req);
+
+    if (!session) {
+      res.setHeader("Set-Cookie", getClearSessionCookies(httpsEnabled));
+      return res.status(401).json({
+        success: false,
+        code: 401,
+        message: "Session expired or not found.",
+      });
+    }
+
+    res.setHeader("Set-Cookie", serializeCsrfCookie(session, httpsEnabled));
+    return res.json({
+      success: true,
+      code: 200,
+      data: {
+        csrfToken: session.csrfToken,
+        headerName: "X-CSRF-Token",
+      },
     });
   });
 
@@ -419,7 +548,7 @@ async function startServer() {
     const session = getAppSession(req);
 
     if (!session) {
-      res.setHeader("Set-Cookie", clearSessionCookie(sessionCookieName, httpsEnabled));
+      res.setHeader("Set-Cookie", getClearSessionCookies(httpsEnabled));
       return res.status(401).json({
         success: false,
         message: "Session expired or not found.",
@@ -427,7 +556,7 @@ async function startServer() {
     }
 
     session.expiresAt = Date.now() + sessionMaxAgeSeconds * 1000;
-    res.setHeader("Set-Cookie", serializeCookie(sessionCookieName, session.id, sessionMaxAgeSeconds, httpsEnabled));
+    res.setHeader("Set-Cookie", getSessionCookies(session, httpsEnabled));
 
     return res.json({
       success: true,
@@ -435,13 +564,15 @@ async function startServer() {
     });
   });
 
+  app.use(verifyCsrfToken);
+
   app.delete("/api/session", (req, res) => {
     const sessionId = parseCookies(req)[sessionCookieName];
     if (sessionId) {
       appSessions.delete(sessionId);
     }
 
-    res.setHeader("Set-Cookie", clearSessionCookie(sessionCookieName, httpsEnabled));
+    res.setHeader("Set-Cookie", getClearSessionCookies(httpsEnabled));
     return res.json({ success: true });
   });
 
@@ -560,6 +691,7 @@ export function createHotContext() {
       server: {
         middlewareMode: true,
         hmr: hmrEnabled ? { server } : false,
+        ws: hmrEnabled ? undefined : false,
       },
       appType: "custom",
     });

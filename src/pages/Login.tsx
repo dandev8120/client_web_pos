@@ -2,12 +2,30 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Alert, App, Button, Spin } from 'antd';
 import { LoginOutlined } from '@ant-design/icons';
 import { useAuth } from 'react-oidc-context';
+import { useSearchParams } from 'react-router-dom';
 
 const REDIRECT_LOCK_KEY = '@@WEB_POS_OIDC_REDIRECTING';
+const AUTH_RETURN_URL_KEY = '@@WEB_POS_AUTH_RETURN_URL';
+
+function normalizeReturnPath(value: string | null | undefined) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/';
+
+  const lowerValue = value.toLowerCase();
+  if (
+    lowerValue.startsWith('/login')
+    || lowerValue.startsWith('/signin-oidc')
+    || lowerValue.startsWith('/signout-callback-oidc')
+  ) {
+    return '/';
+  }
+
+  return value;
+}
 
 export const Login: React.FC = () => {
   const { message } = App.useApp();
   const auth = useAuth();
+  const [searchParams] = useSearchParams();
   const redirectStartedRef = useRef(false);
   const [manualRetryVisible, setManualRetryVisible] = useState(false);
 
@@ -18,8 +36,12 @@ export const Login: React.FC = () => {
   const signin = async () => {
     if (redirectStartedRef.current) return;
 
+    const returnPath = normalizeReturnPath(
+      searchParams.get('returnUrl') || sessionStorage.getItem(AUTH_RETURN_URL_KEY)
+    );
     redirectStartedRef.current = true;
     sessionStorage.setItem(REDIRECT_LOCK_KEY, '1');
+    sessionStorage.setItem(AUTH_RETURN_URL_KEY, returnPath);
 
     try {
       await auth.signinRedirect();
@@ -71,7 +93,7 @@ export const Login: React.FC = () => {
               type={auth.error ? 'error' : 'info'}
               showIcon
               message={auth.error ? 'Không thể đăng nhập SSO' : 'Cần xác thực lại'}
-              description={auth.error?.message || `${authorityUrl} - ${clientId}`}
+              description={auth.error?.message || 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại bằng SSO.'}
             />
             <Button
               type="primary"

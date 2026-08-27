@@ -35,7 +35,7 @@
 ```text
 ├── metadata.json                 # Thông tin metadata & cấu hình ứng dụng (Name, Description, Footer, Major Capabilities)
 ├── server.ts                     # Express Backend Server (Vite Middleware, API Proxies, VAT Engine)
-├── package.json                  # Quản lý dependencies & npm scripts
+├── package.json                  # Quản lý dependencies & pnpm scripts
 ├── src/
 │   ├── api/                      # Tầng HTTP Request Client & API Endpoints
 │   │   ├── apiClient.ts          # Axios wrapper với Interceptors & Error Handlers
@@ -104,26 +104,26 @@
 ### Lệnh Phát Triển (Development Mode)
 ```bash
 # Khởi chạy dev server (Express backend tích hợp Vite middleware)
-npm run dev
+pnpm dev
 ```
 Dev server sẽ lắng nghe tại cổng `3000` (URL: `http://localhost:3000`).
 
 ### Lệnh Kiểm Tra Mã Nguồn (Linting & Type Check)
 ```bash
 # Kiểm tra TypeScript type safety và cú pháp toàn bộ project
-npm run lint
+pnpm lint
 ```
 
 ### Lệnh Biên Dịch & Đóng Gói (Production Build)
 ```bash
 # Biên dịch React Client (Vite) và Bundled CommonJS Server (esbuild)
-npm run build
+pnpm build
 ```
 
 ### Lệnh Khởi Chạy Production
 ```bash
 # Chạy ứng dụng đã biên dịch
-npm start
+pnpm start
 ```
 
 ---

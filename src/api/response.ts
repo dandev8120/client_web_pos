@@ -40,3 +40,54 @@ export class ApiResponse<T> {
     return new ApiResponse<T>(false, (fallbackData ?? null) as unknown as T, message, code);
   }
 }
+
+export class ApiResponseError<T = unknown> extends Error {
+  public readonly response: ApiResponse<T>;
+  public readonly code: number;
+  public readonly data: T;
+
+  constructor(response: ApiResponse<T>) {
+    super(response.message);
+    this.name = 'ApiResponseError';
+    this.response = response;
+    this.code = response.code;
+    this.data = response.data;
+  }
+}
+
+export function toApiResponseError<T = unknown>(
+  response: ApiResponse<T>
+): ApiResponseError<T> {
+  return new ApiResponseError(response);
+}
+
+export function extractErrorMessage(data: unknown): string | null {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  const messages = Object.values(data)
+    .flatMap(value => Array.isArray(value) ? value : [value])
+    .filter(value => typeof value === 'string' && value.trim());
+
+  return messages.length > 0
+    ? [...new Set(messages)].join('\n')
+    : null;
+}
+
+export function createApiErrorResponse<T = unknown>(
+  payload: any,
+  fallbackMessage: string = 'Internal Error',
+  fallbackCode: number = 500
+): ApiResponse<T> {
+  const rawCode = payload?.code ?? fallbackCode;
+  const code = Number.isFinite(Number(rawCode)) ? Number(rawCode) : fallbackCode;
+  const message = String(payload?.message || payload?.error || fallbackMessage);
+  const data = payload?.data !== undefined
+    ? payload.data
+    : payload?.errors !== undefined
+      ? payload.errors
+      : payload;
+
+  return new ApiResponse<T>(false, (data ?? null) as T, message, code);
+}

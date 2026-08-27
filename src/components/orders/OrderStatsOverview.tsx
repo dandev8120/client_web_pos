@@ -60,6 +60,7 @@ const WaterRippleBackground: React.FC<{ isHovered: boolean }> = ({ isHovered }) 
 
         <motion.g
           style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+          initial={{ scale: 1, opacity: 0.2 }}
           animate={{
             scale: isHovered ? [1, 5, 6.8] : 1,
             opacity: isHovered ? [0.8, 0.2, 0] : 0.2,
@@ -70,6 +71,7 @@ const WaterRippleBackground: React.FC<{ isHovered: boolean }> = ({ isHovered }) 
         </motion.g>
         <motion.g
           style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+          initial={{ scale: 1, opacity: 0.25 }}
           animate={{
             scale: isHovered ? [1, 5.3, 8.6] : 1,
             opacity: isHovered ? [0.9, 0.3, 0] : 0.25,
@@ -97,6 +99,7 @@ const RadarGridBackground: React.FC<{ isHovered: boolean }> = ({ isHovered }) =>
 
         {/* Scanning Radar Line */}
         <motion.g
+          initial={{ y: 80, opacity: 0.2 }}
           animate={{
             y: isHovered ? [0, 160, 0] : 80,
             opacity: isHovered ? [0.3, 0.8, 0.3] : 0.2
@@ -109,6 +112,7 @@ const RadarGridBackground: React.FC<{ isHovered: boolean }> = ({ isHovered }) =>
         {/* Pulse Blip Nodes */}
         <motion.circle
           cx="240" cy="40" r="4" fill="#f59e0b"
+          initial={{ scale: 1, opacity: 0.4 }}
           animate={{ scale: isHovered ? [1, 2.2, 1] : 1, opacity: isHovered ? [0.8, 0.2, 0.8] : 0.4 }}
           transition={{ duration: 1.5, repeat: Infinity }}
         />
@@ -124,6 +128,7 @@ const WarehouseCubesBackground: React.FC<{ isHovered: boolean }> = ({ isHovered 
       <svg className="w-full h-full" viewBox="0 0 300 160">
         {/* Cube 1 */}
         <motion.g
+          initial={{ y: 0, opacity: 0.3 }}
           animate={{
             y: isHovered ? [-5, -18, -5] : 0,
             opacity: isHovered ? [0.4, 0.8, 0.4] : 0.3
@@ -137,6 +142,7 @@ const WarehouseCubesBackground: React.FC<{ isHovered: boolean }> = ({ isHovered 
 
         {/* Cube 2 (Small) */}
         <motion.g
+          initial={{ y: 0, opacity: 0.2 }}
           animate={{
             y: isHovered ? [0, -12, 0] : 0,
             opacity: isHovered ? [0.3, 0.7, 0.3] : 0.2
@@ -169,6 +175,7 @@ const SparkleRaysBackground: React.FC<{ isHovered: boolean }> = ({ isHovered }) 
         <motion.path
           d="M 250,30 Q 250,40 260,40 Q 250,40 250,50 Q 250,40 240,40 Q 250,40 250,30 Z"
           fill="#f43f5e"
+          initial={{ rotate: 0, scale: 1, opacity: 0.4 }}
           animate={{
             rotate: isHovered ? [0, 90, 180] : 0,
             scale: isHovered ? [0.8, 1.4, 0.8] : 1,
@@ -181,6 +188,7 @@ const SparkleRaysBackground: React.FC<{ isHovered: boolean }> = ({ isHovered }) 
         <motion.path
           d="M 220,65 Q 220,72 227,72 Q 220,72 220,79 Q 220,72 213,72 Q 220,72 220,65 Z"
           fill="#fb7185"
+          initial={{ rotate: 0, scale: 0.8, opacity: 0.3 }}
           animate={{
             rotate: isHovered ? [0, -90, -180] : 0,
             scale: isHovered ? [0.6, 1.2, 0.6] : 0.8,

@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Form, Row, Col, Input, InputNumber, Select, DatePicker, Button, Space, Tooltip } from 'antd';
 import { SearchOutlined, FilterOutlined, ReloadOutlined, UpOutlined, DownOutlined, ShopOutlined, UserOutlined, FileTextOutlined, CalendarOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import {
+  siteService,
+  TENANT_BRANCHES_STORAGE_KEY,
+  TENANT_BRANCHES_UPDATED_EVENT,
+  TenantBranch,
+} from '../../services/siteService';
 
 interface OrderFilterBarProps {
   form: any;
@@ -20,6 +26,48 @@ export const OrderFilterBar: React.FC<OrderFilterBarProps> = ({
   onSearch,
   onReset,
 }) => {
+  const [tenantBranches, setTenantBranches] = useState<TenantBranch[]>(() => siteService.getTenantBranches());
+
+  useEffect(() => {
+    const syncTenantBranches = () => {
+      setTenantBranches(siteService.getTenantBranches());
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key || event.key === TENANT_BRANCHES_STORAGE_KEY) {
+        syncTenantBranches();
+      }
+    };
+
+    window.addEventListener(TENANT_BRANCHES_UPDATED_EVENT, syncTenantBranches);
+    window.addEventListener('storage', handleStorage);
+    syncTenantBranches();
+
+    return () => {
+      window.removeEventListener(TENANT_BRANCHES_UPDATED_EVENT, syncTenantBranches);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  const siteOptions = useMemo(() => {
+    return tenantBranches.map((branch) => {
+      const maNhomSite = branch.maNhomSite || branch.nhomSite?.maNhomSite || '';
+      const tenSite = branch.tenSite || 'Chưa có tên cửa hàng';
+      const label = `${branch.maSite}(${tenSite})`;
+
+      return {
+        value: branch.maSite,
+        label,
+        searchText: `${maNhomSite} ${branch.maSite} ${tenSite} ${branch.nhomSite?.tenNhomSite || ''}`,
+        branch: {
+          ...branch,
+          maNhomSite,
+          tenSite,
+        },
+      };
+    });
+  }, [tenantBranches]);
+
   return (
     <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-100 shadow-sm mb-4 space-y-4">
       <Form
@@ -30,26 +78,56 @@ export const OrderFilterBar: React.FC<OrderFilterBarProps> = ({
         {/* Priority Filter Row: Primary Criteria */}
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={6} lg={6}>
-            <Form.Item 
-              name="maSites" 
-              label={<span className="font-semibold text-slate-700 text-xs uppercase tracking-wider"><ShopOutlined className="mr-1 text-blue-500" />Mã Cửa Hàng</span>} 
-              className="mb-0"
+            <Form.Item
+              name="maSites"
+              label={<span className="bg-white px-1 font-semibold text-slate-700 text-[11px] uppercase tracking-wider"><ShopOutlined className="mr-1 text-blue-500" />Mã Cửa Hàng</span>}
+              className="floating-label-wrap"
             >
               <Select
                 mode="tags"
-                placeholder="Nhập mã cửa hàng (ấn Enter)..."
+                placeholder="Chọn hoặc nhập mã cửa hàng..."
                 allowClear
+                showSearch
                 tokenSeparators={[',', ' ']}
                 maxTagCount="responsive"
+                popupMatchSelectWidth={420}
+                options={siteOptions}
+                optionFilterProp="searchText"
+                optionLabelProp="label"
+                optionRender={(option) => {
+                  const branch = (option.data as any).branch as TenantBranch | undefined;
+
+                  if (!branch) return option.label;
+
+                  return (
+                    <div className="py-1 leading-snug">
+                      <div className="font-semibold text-slate-800 truncate">{option.label}</div>
+                      <div className="mt-1 space-y-0.5 text-xs text-slate-600">
+                        <div>
+                          <span className="font-semibold text-slate-700">Chi nhánh:</span>{' '}
+                          {branch.maNhomSite || 'N/A'}
+                        </div>
+                        <div>
+                          <span className="font-semibold text-slate-700">Mã cửa hàng:</span>{' '}
+                          <span className="font-mono">{branch.maSite}</span>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-slate-700">Tên cửa hàng:</span>{' '}
+                          {branch.tenSite || 'Chưa có tên cửa hàng'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }}
               />
             </Form.Item>
           </Col>
 
           <Col xs={24} sm={12} md={6} lg={6}>
-            <Form.Item 
-              name="soCTus" 
-              label={<span className="font-semibold text-slate-700 text-xs uppercase tracking-wider"><FileTextOutlined className="mr-1 text-emerald-500" />Mã Đơn / Số Chứng Từ</span>} 
-              className="mb-0"
+            <Form.Item
+              name="soCTus"
+              label={<span className="bg-white px-1 font-semibold text-slate-700 text-[11px] uppercase tracking-wider"><FileTextOutlined className="mr-1 text-emerald-500" />Mã Đơn / Số Chứng Từ</span>}
+              className="floating-label-wrap"
             >
               <Select
                 mode="tags"
@@ -62,20 +140,20 @@ export const OrderFilterBar: React.FC<OrderFilterBarProps> = ({
           </Col>
 
           <Col xs={24} sm={12} md={6} lg={6}>
-            <Form.Item 
-              name="maKH" 
-              label={<span className="font-semibold text-slate-700 text-xs uppercase tracking-wider"><UserOutlined className="mr-1 text-amber-500" />Mã Khách Hàng</span>} 
-              className="mb-0"
+            <Form.Item
+              name="maKH"
+              label={<span className="bg-white px-1 font-semibold text-slate-700 text-[11px] uppercase tracking-wider"><UserOutlined className="mr-1 text-amber-500" />Mã Khách Hàng</span>}
+              className="floating-label-wrap"
             >
-              <Input placeholder="Mã KH (VD: 00000000001101)" allowClear />
+              <Input placeholder="Mã KH (VD: 00000000001198)" allowClear />
             </Form.Item>
           </Col>
 
           <Col xs={24} sm={12} md={6} lg={6}>
-            <Form.Item 
-              name="dateRange" 
-              label={<span className="font-semibold text-slate-700 text-xs uppercase tracking-wider"><CalendarOutlined className="mr-1 text-purple-500" />Khoảng Thời Gian</span>} 
-              className="mb-0"
+            <Form.Item
+              name="dateRange"
+              label={<span className="bg-white px-1 font-semibold text-slate-700 text-[11px] uppercase tracking-wider"><CalendarOutlined className="mr-1 text-purple-500" />Khoảng Thời Gian</span>}
+              className="floating-label-wrap"
             >
               <DatePicker.RangePicker
                 className="w-full"
@@ -85,8 +163,10 @@ export const OrderFilterBar: React.FC<OrderFilterBarProps> = ({
                 classNames={{ popup: { root: 'mobile-responsive-picker' } }}
                 presets={[
                   { label: 'Hôm nay', value: [dayjs().startOf('day'), dayjs().endOf('day')] },
+                  { label: 'Hôm qua', value: [dayjs().subtract(1, 'day').startOf('day'), dayjs().subtract(1, 'day').endOf('day')] },
                   { label: '3 ngày', value: [dayjs().subtract(2, 'day').startOf('day'), dayjs().endOf('day')] },
                   { label: '7 ngày', value: [dayjs().subtract(6, 'day').startOf('day'), dayjs().endOf('day')] },
+                  { label: 'Tuần này', value: [dayjs().startOf('week'), dayjs().endOf('week')] },
                   { label: 'Tháng này', value: [dayjs().startOf('month'), dayjs().endOf('month')] },
                   { label: 'Tháng trước', value: [dayjs().subtract(1, 'month').startOf('month'), dayjs().subtract(1, 'month').endOf('month')] },
                 ]}
@@ -99,76 +179,72 @@ export const OrderFilterBar: React.FC<OrderFilterBarProps> = ({
         {isExpanded && (
           <div className="pt-4 mt-4 border-t border-slate-100 bg-slate-50/60 p-4 rounded-xl space-y-3">
             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Bộ Lọc Chi Tiết Nâng Cao
+              Tìm Kiếm Nâng Cao
             </div>
 
             <Row gutter={[12, 12]}>
               {/* Product & Customer Details */}
-              <Col xs={24} sm={12} md={6}>
-                <Form.Item name="dienThoai" label="Số điện thoại" className="mb-2">
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="dienThoai" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Số điện thoại</span>} className="floating-label-wrap">
                   <Input placeholder="Nhập SĐT..." allowClear />
                 </Form.Item>
               </Col>
-              <Col xs={24} sm={12} md={6}>
-                <Form.Item name="maHH" label="Mã hàng hóa" className="mb-2">
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="maHH" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Mã hàng hóa</span>} className="floating-label-wrap">
                   <Input placeholder="Mã hàng..." allowClear />
                 </Form.Item>
               </Col>
-              <Col xs={24} sm={12} md={6}>
-                <Form.Item name="maBC" label="Mã Barcode" className="mb-2">
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="maBC" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Mã Barcode</span>} className="floating-label-wrap">
                   <Input placeholder="Barcode..." allowClear />
                 </Form.Item>
               </Col>
-              <Col xs={24} sm={12} md={6}>
-                <Form.Item name="loaiCK" label="Loại chiết khấu" className="mb-2">
-                  <Select placeholder="Chọn loại CK" allowClear>
-                    <Select.Option value="PERCENT">Phần trăm (%)</Select.Option>
-                    <Select.Option value="FIXED">Cố định (VNĐ)</Select.Option>
-                    <Select.Option value="PROMO_CODE">Mã khuyến mãi</Select.Option>
-                  </Select>
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="loaiCK" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Loại chiết khấu</span>} className="floating-label-wrap">
+                  <Input placeholder="Loại chiết khấu..." allowClear />
                 </Form.Item>
               </Col>
 
               {/* Amount Ranges */}
-              <Col xs={12} sm={6} md={3}>
-                <Form.Item name="thucThuMin" label="Thực thu Min" className="mb-2">
-                  <InputNumber className="w-full" placeholder="0" formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="thucThuMin" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Thực thu Min</span>} className="floating-label-wrap">
+                  <InputNumber className="w-full" style={{ width: "100%" }} placeholder="0" formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
                 </Form.Item>
               </Col>
-              <Col xs={12} sm={6} md={3}>
-                <Form.Item name="thucThuMax" label="Thực thu Max" className="mb-2">
-                  <InputNumber className="w-full" placeholder="Max" formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="thucThuMax" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Thực thu Max</span>} className="floating-label-wrap">
+                  <InputNumber className="w-full" style={{ width: "100%" }} placeholder="Max" formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
                 </Form.Item>
               </Col>
-              <Col xs={12} sm={6} md={3}>
-                <Form.Item name="tienTheMin" label="Tiền thẻ Min" className="mb-2">
-                  <InputNumber className="w-full" placeholder="0" />
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="tienTheMin" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Tiền thẻ Min</span>} className="floating-label-wrap">
+                  <InputNumber className="w-full" style={{ width: "100%" }} placeholder="0" />
                 </Form.Item>
               </Col>
-              <Col xs={12} sm={6} md={3}>
-                <Form.Item name="tienPhieuMin" label="Tiền phiếu Min" className="mb-2">
-                  <InputNumber className="w-full" placeholder="0" />
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="tienPhieuMin" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Tiền phiếu Min</span>} className="floating-label-wrap">
+                  <InputNumber className="w-full" style={{ width: "100%" }} placeholder="0" />
                 </Form.Item>
               </Col>
 
               {/* Discount Ranges & Keywords */}
-              <Col xs={12} sm={6} md={3}>
-                <Form.Item name="chietKhauMin" label="Chiết khấu Min" className="mb-2">
-                  <InputNumber className="w-full" placeholder="0" />
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="chietKhauMin" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Chiết khấu Min</span>} className="floating-label-wrap">
+                  <InputNumber className="w-full" style={{ width: "100%" }} placeholder="0" />
                 </Form.Item>
               </Col>
-              <Col xs={12} sm={6} md={3}>
-                <Form.Item name="chietKhauMax" label="Chiết khấu Max" className="mb-2">
-                  <InputNumber className="w-full" placeholder="Max" />
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="chietKhauMax" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Chiết khấu Max</span>} className="floating-label-wrap">
+                  <InputNumber className="w-full" style={{ width: "100%" }} placeholder="Max" />
                 </Form.Item>
               </Col>
-              <Col xs={24} sm={12} md={3}>
-                <Form.Item name="paymentKeyword" label="Từ khóa PTTT" className="mb-2">
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="paymentKeyword" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Từ khóa PTTT</span>} className="floating-label-wrap">
                   <Input placeholder="TM, CK, QR..." allowClear />
                 </Form.Item>
               </Col>
-              <Col xs={24} sm={12} md={3}>
-                <Form.Item name="invoiceKeyword" label="Từ khóa HĐ VAT" className="mb-2">
+              <Col xs={24} sm={12} md={6} lg={6}>
+                <Form.Item name="invoiceKeyword" label={<span className="bg-[#f8fafc] px-1 text-slate-700 text-[11px] font-medium">Từ khóa HĐ VAT</span>} className="floating-label-wrap">
                   <Input placeholder="Số HĐ VAT..." allowClear />
                 </Form.Item>
               </Col>
@@ -184,7 +260,7 @@ export const OrderFilterBar: React.FC<OrderFilterBarProps> = ({
             onClick={onToggleExpand}
             className={`transition-colors text-xs font-medium shrink-0 ${isExpanded ? 'text-blue-600 bg-blue-50' : 'text-slate-600 bg-slate-50'}`}
           >
-            <span className="whitespace-nowrap">{isExpanded ? 'Thu gọn nâng cao' : 'Mở rộng nâng cao'}</span>
+            <span className="whitespace-nowrap">{isExpanded ? 'Tìm kiếm cơ bản' : 'Tìm kiếm nâng cao'}</span>
             {isExpanded ? <UpOutlined /> : <DownOutlined />}
           </Button>
 

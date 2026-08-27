@@ -12,6 +12,7 @@ import {
   ThunderboltOutlined,
   WifiOutlined,
 } from '@ant-design/icons';
+import { getAxiosErrorMessage, httpClient } from '../api/httpClient';
 import { orderService } from '../services/orderService';
 import { getOrderDetailFull } from './orders/orderHelpers';
 
@@ -43,14 +44,21 @@ function textValue(value: any, fallback = '—') {
   return text;
 }
 
+function numberValue(value: any, fallback = 0) {
+  if (value === null || value === undefined || value === '') return fallback;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+
+  const parsed = Number(String(value).replace(/[^\d.-]/g, ''));
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function money(value: any) {
-  const num = Number(value || 0);
+  const num = numberValue(value);
   return `${num.toLocaleString('vi-VN')} đ`;
 }
 
 function parseMoney(value: any) {
-  if (typeof value === 'number') return value;
-  return Number(String(value || '').replace(/[^\d.-]/g, '')) || 0;
+  return numberValue(value);
 }
 
 function formatDateTime(value: any) {
@@ -158,6 +166,26 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
     }
   }, []);
 
+  const fetchData = (forceRefresh = false) => {
+    if (!effectiveReceipt || !effectiveSite) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    orderService.getReceiptDetail(effectiveSite, effectiveReceipt, forceRefresh)
+      .then(result => {
+        setLoadedOrder(result);
+        setLastRefreshAt(new Date().toLocaleTimeString('vi-VN'));
+        if (autoPrint && !forceRefresh) window.setTimeout(() => window.print(), 300);
+      })
+      .catch(err => {
+        setError(err?.message || 'Không thể tải dữ liệu chi tiết chứng từ để in.');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  };
+
   useEffect(() => {
     if (!open) return;
 
@@ -167,29 +195,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
       setLoadedOrder(initialDetail);
     }
 
-    if (!effectiveReceipt) return;
-
-    let mounted = true;
-    setIsLoading(true);
-    setError(null);
-
-    orderService.getReceiptDetail(effectiveSite, effectiveReceipt, false)
-      .then(result => {
-        if (!mounted) return;
-        setLoadedOrder(result);
-        if (autoPrint) window.setTimeout(() => window.print(), 300);
-      })
-      .catch(err => {
-        if (!mounted) return;
-        setError(err?.message || 'Không thể tải dữ liệu chi tiết chứng từ để in.');
-      })
-      .finally(() => {
-        if (mounted) setIsLoading(false);
-      });
-
-    return () => {
-      mounted = false;
-    };
+    fetchData(false);
   }, [open, effectiveSite, effectiveReceipt, autoPrint]);
 
   const detail = useMemo(() => {
@@ -201,12 +207,15 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   const raw = detail.rawJsonb || {};
   const rawTotals = raw.receiptTotals || {};
   const items = Array.isArray(detail.items) ? detail.items : [];
-  const subtotal = Number(rawTotals.totalItemAmount || rawTotals.TotalItemAmount || rawTotals.subTotal || rawTotals.subtotal || rawTotals.totalAmount || parseMoney(detail.totals?.subtotal) || 0);
-  const discountTotal = Number(rawTotals.totalDiscountAmount || rawTotals.TotalDiscountAmount || rawTotals.totalDiscount || rawTotals.discountTotal || rawTotals.discountAmount || parseMoney(detail.totals?.discountTotal) || 0);
-  const vatTotal = Number(rawTotals.totalVatAmount || rawTotals.TotalVatAmount || rawTotals.vatAmount || rawTotals.vatTotal || parseMoney(detail.totals?.vatTotal) || 0);
-  const totalAmount = Number(rawTotals.totalAmount ?? parseMoney(detail.totals?.totalAmount) ?? subtotal - discountTotal) || 0;
-  const paidAmount = Number(rawTotals.customerPaidAmount ?? parseMoney(detail.payment?.amountPaid) ?? totalAmount) || 0;
-  const changeAmount = Number(rawTotals.changeAmount ?? parseMoney(detail.payment?.changeAmount) ?? 0) || 0;
+  const itemQuantityTotal = items.reduce((sum: number, item: any) => sum + numberValue(item.quantity), 0);
+  const totalQuantity = numberValue(rawTotals.totalQuantity, numberValue(detail.order?.quantity, itemQuantityTotal));
+  const subtotal = numberValue(rawTotals.totalItemAmount || rawTotals.TotalItemAmount || rawTotals.subTotal || rawTotals.subtotal || rawTotals.totalAmount || detail.totals?.subtotal);
+  const discountTotal = numberValue(rawTotals.totalDiscountAmount || rawTotals.TotalDiscountAmount || rawTotals.totalDiscount || rawTotals.discountTotal || rawTotals.discountAmount || detail.totals?.discountTotal);
+  const vatTotal = numberValue(rawTotals.totalVatAmount || rawTotals.TotalVatAmount || rawTotals.vatAmount || rawTotals.vatTotal || detail.totals?.vatTotal);
+  const totalAmount = numberValue(rawTotals.totalAmount ?? detail.totals?.totalAmount, subtotal - discountTotal);
+  const paidAmount = numberValue(rawTotals.customerPaidAmount ?? detail.payment?.amountPaid, totalAmount);
+  const voucherAmount = numberValue(rawTotals.voucherAmount);
+  const changeAmount = numberValue(rawTotals.changeAmount ?? detail.payment?.changeAmount);
   const amountInWords = textValue(rawTotals.totalAmountWithTaxInWords, numberToVietnameseWords(totalAmount));
 
   const seller = {
@@ -270,10 +279,11 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   const buildPrinterText = (test = false) => {
     const itemLines = items.map((item: any, index: number) => [
       `${index + 1}. ${textValue(item.productName, 'San pham')}`,
-      `   ${Number(item.quantity || 0)} x ${Number(item.price || 0).toLocaleString('vi-VN')} = ${Number(item.total || 0).toLocaleString('vi-VN')}`,
+      `   ${numberValue(item.quantity)} x ${numberValue(item.price).toLocaleString('vi-VN')} = ${numberValue(item.total).toLocaleString('vi-VN')}`,
     ].join('\n'));
 
     return [
+      'BITI`S',
       seller.storeName,
       seller.address,
       `MST: ${seller.taxCode}`,
@@ -281,10 +291,17 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
       test ? 'PHIEU TEST MAY IN' : 'PHIEU THANH TOAN',
       `So CT: ${receipt.number}`,
       `Thoi gian: ${receipt.time}`,
+      '--------------------------------',
       `Thu ngan: ${employee.name}`,
+      `Ca: ${employee.shift}`,
+      customer.name ? `Khach hang: ${customer.name}` : null,
+      customer.phone ? `SDT: ${customer.phone}` : null,
       '--------------------------------',
       ...itemLines,
       '--------------------------------',
+      `Cong tien hang: ${subtotal.toLocaleString('vi-VN')}`,
+      discountTotal > 0 ? `Tong tien chiet khau: ${discountTotal.toLocaleString('vi-VN')}` : null,
+      `Tong thue GTGT (VAT): ${vatTotal.toLocaleString('vi-VN')}`,
       `Tong thanh toan: ${totalAmount.toLocaleString('vi-VN')}`,
       `Thanh toan: ${paymentName}`,
       `Khach dua: ${paidAmount.toLocaleString('vi-VN')}`,
@@ -295,10 +312,8 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   };
 
   const callPrinterApi = async (url: string, test = false) => {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      const response = await httpClient.post(url, {
         host: printerIp,
         port: Number(printerPort || 9100),
         paperWidth,
@@ -306,13 +321,15 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
         copies: test ? 1 : copyCount,
         receiptNumber: receipt.number,
         content: buildPrinterText(test),
-      }),
-    });
-    const json = await response.json().catch(() => null);
-    if (!response.ok || json?.success === false) {
-      throw new Error(json?.message || `Không thể kết nối máy in ${printerIp}:${printerPort}`);
+      });
+      const json = response.data;
+      if (json?.success === false) {
+        throw new Error(json?.message || `Không thể kết nối máy in ${printerIp}:${printerPort}`);
+      }
+      return json;
+    } catch (err) {
+      throw new Error(getAxiosErrorMessage(err, `Không thể kết nối máy in ${printerIp}:${printerPort}`).message);
     }
-    return json;
   };
 
   const handleTestPrint = async () => {
@@ -336,10 +353,11 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   };
 
   const handlePrint = async () => {
-    if (activeTab === 'vat' || printerType === 'driver') {
-      window.print();
-      return;
-    }
+    // Để "xem sao in vậy" chính xác 100% với bản Preview (có logo, có viền, font chữ có dấu),
+    // chúng ta BẮT BUỘC phải dùng window.print() cho cả 2 tab K80 và A4.
+    // Lệnh in API (LAN) chỉ có thể truyền text thô (không dấu, không khung viền).
+    window.print();
+    return;
 
     setIsPrinting(true);
     message.loading({ content: `Đang gửi lệnh in tới ${printerIp}:${printerPort}...`, key: 'print' });
@@ -362,44 +380,81 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   };
 
   const handleLocalRefresh = () => {
-    setLastRefreshAt(new Date().toLocaleTimeString('vi-VN'));
-    message.success('Đã làm mới giao diện phiếu in.');
+    fetchData(true);
+    message.success('Đã làm mới dữ liệu phiếu in.');
   };
 
   const printStyles = (
     <style>{`
       @media print {
-        body * { visibility: hidden !important; }
-        #printable-invoice-content, #printable-invoice-content * { visibility: visible !important; }
-        #printable-invoice-content {
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
-          width: 100% !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          background: #fff !important;
-          color: #000 !important;
-          box-shadow: none !important;
-          border: 0 !important;
+        @page { size: auto; margin: 0; }
+        html, body {
+           height: auto !important;
+           overflow: visible !important;
+           margin: 0 !important;
+           padding: 0 !important;
+           background: #fff !important;
         }
-        .no-print, .no-print * { display: none !important; }
+
+        /* Hide main app */
+        #root { display: none !important; }
+
+        /* Reset modal layout */
+        .ant-modal-mask { display: none !important; }
+        .ant-modal-wrap {
+            position: static !important;
+            display: block !important;
+            overflow: visible !important;
+        }
+        .ant-modal {
+            position: static !important;
+            transform: none !important;
+            top: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: auto !important;
+            max-width: none !important;
+        }
+        .ant-modal-content {
+            box-shadow: none !important;
+            padding: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+        }
+        .ant-modal-body {
+            padding: 0 !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+        }
+
+        .no-print { display: none !important; }
+
+        #printable-invoice-content {
+            display: block !important;
+            position: static !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
         .print-a4 {
-          width: 190mm !important;
-          min-height: 277mm !important;
+          width: 210mm !important;
           margin: 0 auto !important;
-          padding: 8mm !important;
+          padding: 10mm !important;
           box-shadow: none !important;
           border: 0 !important;
         }
         .print-k80 {
-          width: 76mm !important;
-          max-width: 76mm !important;
+          width: 80mm !important;
+          max-width: 80mm !important;
           margin: 0 auto !important;
           padding: 2mm !important;
           box-shadow: none !important;
           border: 0 !important;
-          font-size: 10px !important;
+          font-size: 11px !important;
         }
       }
     `}</style>
@@ -411,15 +466,15 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   const printYear = !Number.isNaN(receiptDate.getTime()) ? String(receiptDate.getFullYear()) : '...';
 
   const a4Invoice = (
-    <section className="print-a4 mx-auto max-w-[794px] bg-white text-black shadow-sm border border-black rounded-sm p-4 text-[12px] leading-relaxed relative" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
-      
+    <section className="print-a4 mx-auto max-w-[794px] bg-white text-black shadow-sm border border-black rounded-sm p-4 text-[12px] leading-relaxed relative">
+
       {/* Header */}
       <div className="relative pb-2 flex justify-between items-start">
         {/* Logo Left */}
         <div className="w-1/4 text-left">
            {metadata?.logoUrlVAT && <img src={metadata.logoUrlVAT} alt="Logo" className="max-w-[120px] max-h-[80px] object-contain" />}
         </div>
-        
+
         {/* Center Title */}
         <div className="flex-1 text-center">
           <h1 className="m-0 text-[18px] font-bold uppercase">Hóa đơn giá trị gia tăng</h1>
@@ -430,7 +485,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
             Ngày <span className="italic">(date)</span> {printDay} tháng <span className="italic">(month)</span> {printMonth} năm <span className="italic">(year)</span> {printYear}
           </div>
         </div>
-        
+
         {/* Right Info */}
         <div className="w-1/4 text-right">
           <div className="flex justify-end gap-2">
@@ -464,7 +519,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
           <div><span className="font-bold">Số tài khoản <span className="italic">(Bank account)</span>:</span> </div>
         </div>
         <div><span className="font-bold">Ghi chú <span className="italic">(Note)</span>:</span> </div>
-        
+
         {/* Extra data section (kept as requested) */}
         <div className="grid grid-cols-2 mt-1 text-[11px]">
             <div><span className="font-bold">SĐT:</span> {buyer.phone !== '—' ? buyer.phone : customer.phone}</div>
@@ -495,7 +550,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
               <td className="border border-black p-1 text-center font-mono">{textValue(item.sku)}</td>
               <td className="border border-black p-1">{textValue(item.productName)}</td>
               <td className="border border-black p-1 text-center">{textValue(item.unit)}</td>
-              <td className="border border-black p-1 text-right">{Number(item.quantity || 0)}</td>
+              <td className="border border-black p-1 text-right">{numberValue(item.quantity)}</td>
               <td className="border border-black p-1 text-right">{money(item.price)}</td>
               <td className="border border-black p-1 text-right">{money(item.total)}</td>
             </tr>
@@ -554,6 +609,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   const k80Receipt = (
     <section className="print-k80 mx-auto w-full max-w-[340px] bg-white text-slate-950 shadow-lg border border-slate-300 p-4 font-mono text-[11px] leading-tight">
       <header className="text-center border-b border-dashed border-slate-900 pb-2">
+        <div className="font-black text-[12px] font-sans">Công Ty TNHH SX HTD Bình Tiên</div>
         <div className="font-black text-[16px] font-sans">BITI'S</div>
         <div className="mt-1 font-bold uppercase">{seller.storeName}</div>
         <div className="mt-1 text-[10px]">{seller.address}</div>
@@ -562,15 +618,16 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
 
       <section className="border-b border-dashed border-slate-900 py-2 text-center">
         <div className="font-black uppercase font-sans text-[14px]">Phiếu thanh toán</div>
-        <div>Số CT: <strong>{receipt.number}</strong></div>
-        <div>{receipt.time}</div>
       </section>
 
       <section className="border-b border-dashed border-slate-900 py-2 text-[10px]">
-        <div className="flex justify-between gap-2"><span>Thu ngân</span><strong className="text-right">{employee.name}</strong></div>
-        <div className="flex justify-between gap-2"><span>Ca</span><strong>{employee.shift}</strong></div>
+        <div className="flex justify-between gap-2"><span>Số chứng từ</span><strong className="text-right">{receipt.number}</strong></div>
         <div className="flex justify-between gap-2"><span>Khách hàng</span><strong className="text-right">{customer.name}</strong></div>
         <div className="flex justify-between gap-2"><span>Điện thoại</span><strong>{customer.phone}</strong></div>
+        <div className="flex justify-between gap-2"><span>Hạng thẻ</span><strong>{customer.tier}</strong></div>
+        <div className="flex justify-between gap-2"><span>Thu ngân</span><strong className="text-right">{employee.name}</strong></div>
+        <div className="flex justify-between gap-2"><span>Ca</span><strong>{employee.shift}</strong></div>
+        <div className="flex justify-between gap-2"><span>Ngày in</span><strong className="text-right">{receipt.time}</strong></div>
       </section>
 
       <section className="border-b border-slate-900 py-2">
@@ -586,7 +643,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
               <div className="text-[9px] text-slate-600">SKU: {textValue(item.sku)} · {textValue(item.barcode)}</div>
               <div className="grid grid-cols-12">
                 <div className="col-span-7">{money(item.price)}</div>
-                <div className="col-span-2 text-center">{Number(item.quantity || 0)}</div>
+                <div className="col-span-2 text-center">{numberValue(item.quantity)}</div>
                 <div className="col-span-3 text-right font-bold">{money(item.total)}</div>
               </div>
             </div>
@@ -595,18 +652,24 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
       </section>
 
       <section className="border-b border-double border-slate-900 py-2 space-y-1">
+        <div className="flex justify-between"><span>Tổng lượng hàng</span><strong>{totalQuantity}</strong></div>
         <div className="flex justify-between"><span>Cộng tiền hàng</span><strong>{money(subtotal)}</strong></div>
         {discountTotal > 0 && <div className="flex justify-between"><span>Tổng tiền chiết khấu</span><strong>{money(discountTotal)}</strong></div>}
         <div className="flex justify-between"><span>Tổng thuế GTGT (VAT)</span><strong>{money(vatTotal)}</strong></div>
         <div className="flex justify-between text-[13px] font-black border-t border-slate-900 pt-1"><span>Tổng cộng</span><span>{money(totalAmount)}</span></div>
         <div className="flex justify-between"><span>Thanh toán</span><strong>{paymentName}</strong></div>
         <div className="flex justify-between"><span>Khách đưa</span><strong>{money(paidAmount)}</strong></div>
+        <div className="flex justify-between"><span>Phiếu quà tặng</span><strong>{money(voucherAmount)}</strong></div>
         <div className="flex justify-between"><span>Trả lại</span><strong>{money(changeAmount)}</strong></div>
       </section>
 
       <footer className="pt-3 text-center text-[10px]">
-        <div className="font-mono tracking-widest border border-slate-300 py-1">*{receipt.number}*</div>
-        <div className="mt-2">UUID: {receipt.uuid}</div>
+        <div className="font-mono tracking-widest border border-slate-300 py-1">*UUID: {receipt.uuid}*</div>
+        <div className="mt-1">Khách hàng vui lòng giữ hóa đơn tính tiền để bảo hành sản phẩm.</div>
+        <div className="mt-1">Sản phẩm được đổi trong vòng 7 ngày khi còn nguyên tem nhãn chưa qua sử dụng.</div>
+        <div className="mt-1">* HÀNG GIẢM GIÁ VUI LÒNG KHÔNG ĐỔI TRẢ.</div>
+        <div className="mt-1">* SẢN PHẨM CỦA QUÝ KHÁCH SẼ ĐƯỢC MIỄN PHÍ KHI KHÔNG CÓ TRÊN HÓA ĐƠN.</div>
+        <div className="mt-1">* Bill có giá trị xuất hóa đơn tại thời điểm thanh toán.</div>
         <div className="mt-1">Cảm ơn Quý khách và hẹn gặp lại.</div>
       </footer>
     </section>
@@ -649,7 +712,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
       >
         <div className="space-y-4 text-xs">
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-blue-800">
-            Máy in LAN/Wi-Fi cần mở cổng RAW TCP, thường là <strong>9100</strong>. Trình duyệt không thể tự kết nối TCP nên app sẽ gửi qua server Node nội bộ.
+            Máy in LAN/Wi-Fi cần mở cổng RAW TCP <strong>9100</strong>. Trình duyệt không thể tự kết nối TCP nên app sẽ gửi qua server nội bộ.
           </div>
 
           <div>
