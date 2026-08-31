@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Space, Divider, App, Tag, Timeline, Modal, Tooltip } from 'antd';
+import { Button, Space, Divider, Tag, Timeline, Modal, Tooltip } from 'antd';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   FileTextOutlined,
@@ -33,6 +33,7 @@ import { StatusIndicator } from './StatusIndicator';
 import { useSearchParams } from 'react-router-dom';
 import { PermissionGuard } from '../PermissionGuard';
 import { PrintInvoice } from '../PrintInvoice';
+import { message } from '../../services/toastMessage';
 
 interface OrderDetailViewProps {
   order: DataType;
@@ -40,7 +41,6 @@ interface OrderDetailViewProps {
 }
 
 export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint }) => {
-  const { message } = App.useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const detail = getOrderDetailFull(order);
 
@@ -267,6 +267,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({ order, onPrint
                           <div className="flex flex-wrap gap-x-4 gap-y-1">
                             <div><span className="font-bold text-slate-800">MST:</span> {detail.store.taxCode}</div>
                             <div><span className="font-bold text-slate-800">Mã HĐ:</span> {detail.store.invoiceCode}</div>
+                            <div><span className="font-bold text-slate-800">Thuế suất GTGT:</span> {detail.store.vatPercentage} %</div>
                           </div>
                           <div><span className="font-bold text-slate-800">Email:</span> {detail.store.email}</div>
                         </div>

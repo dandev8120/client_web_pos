@@ -440,6 +440,7 @@ export function getOrderDetailFull(order: DataType): OrderDetailFull {
   const sellerAddressLine = v(sellerInfo.sellerAddressLine);
   const sellerWebsite = v(sellerInfo.sellerWebsite);
   const invoiceSeries = v(sellerInfo.invoiceSeries);
+  const vatPercentage = v(sellerInfo.vatPercentage);
 
   // Receipt
   const receiptNumber = v(receiptInfo.receiptNumber ?? order.id);
@@ -576,6 +577,7 @@ export function getOrderDetailFull(order: DataType): OrderDetailFull {
       website: sellerWebsite,
       taxCode: sellerTaxCode,
       invoiceCode: invoiceSeries,
+      vatPercentage: vatPercentage,
       legalName: sellerLegalName,
       logo: 'https://images.unsplash.com/photo-1534452203293-494d7ddbf7e0?w=100&h=100&fit=crop&crop=faces',
       cashier: `${empName} (${empCode})`,
@@ -612,6 +614,7 @@ export function getOrderDetailFull(order: DataType): OrderDetailFull {
       vatAmount: `${itemsList.reduce((sum, item) => sum + item.vat, 0).toLocaleString('vi-VN')} ₫`,
       formNo: '1/001',
       serialNo: invoiceSeries,
+      vatPercentage: vatPercentage,
       eInvoiceNo: invoiceNumber,
       fullName: buyerName,
       phone: buyerPhone,

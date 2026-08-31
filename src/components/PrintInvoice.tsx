@@ -1,11 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { App, Badge, Button, Input, Modal, Select, Space, Spin, Switch, Tabs, Tag, Tooltip } from 'antd';
+import { Badge, Button, Input, Modal, Select, Space, Switch, Tabs, Tag, Tooltip } from 'antd';
 import metadata from '../../metadata.json';
 import {
   CheckCircleOutlined,
   DownloadOutlined,
   ExclamationCircleOutlined,
-  LoadingOutlined,
   PrinterOutlined,
   ReloadOutlined,
   SettingOutlined,
@@ -15,6 +14,10 @@ import {
 import { getAxiosErrorMessage, httpClient } from '../api/httpClient';
 import { orderService } from '../services/orderService';
 import { getOrderDetailFull } from './orders/orderHelpers';
+import { message } from '../services/toastMessage';
+import { DataSectionSkeleton } from './DataSectionSkeleton';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 export interface PrintInvoiceProps {
   siteCode?: string;
@@ -31,7 +34,7 @@ type PrinterType = 'lan' | 'driver';
 type PaperWidth = 'k80' | 'k57';
 
 const NO_DATA = 'Không có dữ liệu';
-const PRINTER_CONFIG_KEY = 'k80_printer_config';
+const PRINTER_CONFIG_KEY = STORAGE_KEYS.PRINTER_CONFIG;
 
 function isFullDetail(value: any) {
   return Boolean(value?.store && value?.order && Array.isArray(value?.items));
@@ -129,10 +132,10 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   autoPrint = false,
   isModal = true,
 }) => {
-  const { message } = App.useApp();
   const [activeTab, setActiveTab] = useState<'pos' | 'vat'>('pos');
   const [loadedOrder, setLoadedOrder] = useState<any>(order || null);
   const [isLoading, setIsLoading] = useState(false);
+  const showInvoiceLoadingSkeleton = useDelayedLoading(isLoading, 400);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshAt, setLastRefreshAt] = useState('');
 
@@ -212,6 +215,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   const subtotal = numberValue(rawTotals.totalItemAmount || rawTotals.TotalItemAmount || rawTotals.subTotal || rawTotals.subtotal || rawTotals.totalAmount || detail.totals?.subtotal);
   const discountTotal = numberValue(rawTotals.totalDiscountAmount || rawTotals.TotalDiscountAmount || rawTotals.totalDiscount || rawTotals.discountTotal || rawTotals.discountAmount || detail.totals?.discountTotal);
   const vatTotal = numberValue(rawTotals.totalVatAmount || rawTotals.TotalVatAmount || rawTotals.vatAmount || rawTotals.vatTotal || detail.totals?.vatTotal);
+  const vatPercentage = raw.sellerInfo.vatPercentage;
   const totalAmount = numberValue(rawTotals.totalAmount ?? detail.totals?.totalAmount, subtotal - discountTotal);
   const paidAmount = numberValue(rawTotals.customerPaidAmount ?? detail.payment?.amountPaid, totalAmount);
   const voucherAmount = numberValue(rawTotals.voucherAmount);
@@ -569,7 +573,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
               </tr>
             )}
             <tr>
-              <td colSpan={2} className="border border-black p-1 text-center font-bold">Thuế suất GTGT<br/><span className="italic font-normal">(VAT rate):</span></td>
+              <td colSpan={2} className="border border-black p-1 text-center font-bold">Thuế suất GTGT<br/><span className="italic font-normal">(VAT rate): {vatPercentage} %</span></td>
               <td colSpan={4} className="border border-black p-1 text-right font-bold">Tổng thuế GTGT <span className="italic font-normal">(Total VAT Amount):</span></td>
               <td className="border border-black p-1 text-right">{money(vatTotal)}</td>
             </tr>
@@ -680,11 +684,13 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
       {printStyles}
       <div id="printable-invoice-content" className={activeTab === 'vat' ? 'bg-white p-3' : 'bg-slate-200 p-4 print:bg-white print:p-0'}>
         {isLoading ? (
-          <div className="no-print flex min-h-[360px] flex-col items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white">
-            <Spin indicator={<LoadingOutlined style={{ fontSize: 32 }} spin />} />
-            <div className="font-bold text-slate-700">Đang tải dữ liệu chi tiết chứng từ...</div>
-            <code className="rounded bg-slate-100 px-2 py-1 text-xs">{effectiveReceipt}</code>
-          </div>
+          showInvoiceLoadingSkeleton ? (
+            <DataSectionSkeleton
+              rows={5}
+              titleKey="invoice_loading_title"
+              className="no-print min-h-[360px]"
+            />
+          ) : null
         ) : error ? (
           <div className="no-print flex min-h-[260px] flex-col items-center justify-center gap-2 text-center text-rose-600">
             <ExclamationCircleOutlined className="text-2xl" />

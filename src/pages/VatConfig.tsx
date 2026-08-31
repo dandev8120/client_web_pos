@@ -6,6 +6,9 @@ import PageContainer from '../components/PageContainer';
 import seedVatJson from '../seed/seedVat.json';
 import { VatFormConfigDto, VatFormFieldDto, VatTypeConfigDto, VatInvoiceMapper } from '../dtos/VatDto';
 import { vatService } from '../services/vatService';
+import { message } from '../services/toastMessage';
+import { DataSectionSkeleton } from '../components/DataSectionSkeleton';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -14,8 +17,9 @@ type FieldConfig = VatFormFieldDto;
 const defaultState: VatFormConfigDto = VatInvoiceMapper.toFormConfigDto(seedVatJson.vatFormConfig);
 
 export default function VatConfig() {
-  const { message, modal, notification } = App.useApp();
+  const { modal } = App.useApp();
   const [loading, setLoading] = useState<boolean>(true);
+  const showConfigSkeleton = useDelayedLoading(loading, 400);
   const [saving, setSaving] = useState<boolean>(false);
   const [config, setConfig] = useState<VatFormConfigDto>(defaultState);
   const [activeTab, setActiveTab] = useState<string>('enterprise');
@@ -61,10 +65,9 @@ export default function VatConfig() {
       setConfig(savedConfig);
       if (savedConfig) {
         const jsonbSize = (JSON.stringify(savedConfig).length / 1024).toFixed(2);
-        notification.success({
-          message: "Lưu Cấu Hình JSONB Thành Công!",
+        message.success({
+          title: "Lưu Cấu Hình JSONB Thành Công!",
           description: `Toàn bộ khối dữ liệu cấu hình (${jsonbSize} KB) đã được cập nhật qua VatService.`,
-          placement: 'topRight',
           duration: 4.5
         });
       }
@@ -189,12 +192,12 @@ export default function VatConfig() {
   const openOptionsModal = (type: 'individual' | 'enterprise', field: FieldConfig) => {
     setOptionsTargetType(type);
     setEditingFieldKey(field.key);
-    
+
     // Format options back to raw text key: label
     const rawText = (field.options || [])
       .map(o => `${o.value}: ${o.text}`)
       .join('\n');
-      
+
     setIsOptionsModalOpen(true);
     setTimeout(() => {
       optionsForm.setFieldsValue({ optionsRaw: rawText });
@@ -204,7 +207,7 @@ export default function VatConfig() {
   // Handle Save Options
   const handleSaveOptions = (values: any) => {
     const parsedOpts = parseOptionsRaw(values.optionsRaw);
-    
+
     const updatedFields = config[optionsTargetType].fields.map(field => {
       if (field.key === editingFieldKey) {
         return { ...field, options: parsedOpts };
@@ -253,8 +256,8 @@ export default function VatConfig() {
       key: 'label',
       width: '20%',
       render: (text: string, record: FieldConfig) => (
-        <Input 
-          value={text} 
+        <Input
+          value={text}
           onChange={(e) => handleFieldChange(type, record.key, 'label', e.target.value)}
           size="small"
           className="rounded"
@@ -289,8 +292,8 @@ export default function VatConfig() {
       width: '8%',
       align: 'center' as const,
       render: (checked: boolean, record: FieldConfig) => (
-        <Checkbox 
-          checked={checked} 
+        <Checkbox
+          checked={checked}
           onChange={(e) => handleFieldChange(type, record.key, 'enabled', e.target.checked)}
         />
       )
@@ -302,8 +305,8 @@ export default function VatConfig() {
       width: '8%',
       align: 'center' as const,
       render: (checked: boolean, record: FieldConfig) => (
-        <Checkbox 
-          checked={checked} 
+        <Checkbox
+          checked={checked}
           disabled={!record.enabled}
           onChange={(e) => handleFieldChange(type, record.key, 'required', e.target.checked)}
         />
@@ -315,8 +318,8 @@ export default function VatConfig() {
       key: 'placeholder',
       width: '26%',
       render: (text: string, record: FieldConfig) => (
-        <Input 
-          value={text} 
+        <Input
+          value={text}
           disabled={!record.enabled}
           onChange={(e) => handleFieldChange(type, record.key, 'placeholder', e.target.value)}
           size="small"
@@ -334,21 +337,21 @@ export default function VatConfig() {
         <Space size="small">
           {record.type === 'select' && (
             <Tooltip title="Cấu hình tùy chọn (options)">
-              <Button 
-                size="small" 
-                type="text" 
-                icon={<SettingOutlined className="text-blue-500" />} 
-                onClick={() => openOptionsModal(type, record)} 
+              <Button
+                size="small"
+                type="text"
+                icon={<SettingOutlined className="text-blue-500" />}
+                onClick={() => openOptionsModal(type, record)}
               />
             </Tooltip>
           )}
           <Tooltip title="Xóa trường">
-            <Button 
-              size="small" 
-              type="text" 
-              danger 
-              icon={<DeleteOutlined />} 
-              onClick={() => handleDeleteField(type, record.key)} 
+            <Button
+              size="small"
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteField(type, record.key)}
             />
           </Tooltip>
         </Space>
@@ -364,7 +367,7 @@ export default function VatConfig() {
       <Row gutter={[24, 24]}>
         {/* Settings Column */}
         <Col xs={24} lg={15}>
-          <Card 
+          <Card
             title={
               <div className="flex items-center gap-2 py-1">
                 <SettingOutlined className="text-blue-600" />
@@ -384,8 +387,8 @@ export default function VatConfig() {
               </Space>
             }
           >
-            <Tabs 
-              activeKey={activeTab} 
+            <Tabs
+              activeKey={activeTab}
               onChange={setActiveTab}
               items={[
                 {
@@ -398,59 +401,65 @@ export default function VatConfig() {
                   ),
                   children: (
                     <div className="pt-2">
-                      <div className="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-100 flex items-center justify-between">
-                        <div>
-                          <Text strong className="block mb-1">Kích hoạt hóa đơn Doanh nghiệp</Text>
-                          <Text type="secondary" className="text-xs">Cho phép khách hàng lựa chọn xuất VAT cho đơn vị công ty</Text>
-                        </div>
-                        <Switch 
-                          checked={config.enterprise.enabled} 
-                          onChange={(checked) => handleHeaderChange('enterprise', 'enabled', checked)}
-                        />
-                      </div>
-
-                      {config.enterprise.enabled && (
-                        <div className="space-y-4">
-                          <div className="flex flex-col gap-1">
-                            <Text strong className="text-xs text-slate-500 uppercase tracking-wider">Tiêu đề biểu mẫu</Text>
-                            <Input 
-                              value={config.enterprise.title}
-                              onChange={(e) => handleHeaderChange('enterprise', 'title', e.target.value)}
-                              placeholder="Nhập tiêu đề hiển thị"
-                              className="rounded-lg h-9"
-                            />
-                          </div>
-
-                          <Divider className="my-4" />
-
-                          <div>
-                            <div className="flex justify-between items-center mb-3">
-                              <Text strong className="text-sm text-slate-800">Danh sách trường nhập liệu (Doanh nghiệp)</Text>
-                              <Space>
-                                <Badge count={`${config.enterprise.fields?.filter(f => f.enabled).length || 0} trường kích hoạt`} color="blue" />
-                                <Button 
-                                  type="primary" 
-                                  size="small" 
-                                  icon={<PlusOutlined />} 
-                                  onClick={() => openAddFieldModal('enterprise')}
-                                  className="bg-blue-600 border-none text-xs"
-                                >
-                                  Thêm trường
-                                </Button>
-                              </Space>
+                      {showConfigSkeleton ? (
+                        <DataSectionSkeleton rows={6} titleKey="vat_config_loading_title" />
+                      ) : (
+                        <>
+                          <div className="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-100 flex items-center justify-between">
+                            <div>
+                              <Text strong className="block mb-1">Kích hoạt hóa đơn Doanh nghiệp</Text>
+                              <Text type="secondary" className="text-xs">Cho phép khách hàng lựa chọn xuất VAT cho đơn vị công ty</Text>
                             </div>
-                            <Table 
-                              dataSource={config.enterprise.fields}
-                              columns={tableColumns('enterprise')}
-                              pagination={false}
-                              loading={loading}
-                              rowKey="key"
-                              size="small"
-                              bordered
-                              className="shadow-sm rounded-lg overflow-hidden"
+                            <Switch
+                              checked={config.enterprise.enabled}
+                              onChange={(checked) => handleHeaderChange('enterprise', 'enabled', checked)}
                             />
                           </div>
-                        </div>
+
+                          {config.enterprise.enabled && (
+                            <div className="space-y-4">
+                              <div className="flex flex-col gap-1">
+                                <Text strong className="text-xs text-slate-500 uppercase tracking-wider">Tiêu đề biểu mẫu</Text>
+                                <Input
+                                  value={config.enterprise.title}
+                                  onChange={(e) => handleHeaderChange('enterprise', 'title', e.target.value)}
+                                  placeholder="Nhập tiêu đề hiển thị"
+                                  className="rounded-lg h-9"
+                                />
+                              </div>
+
+                              <Divider className="my-4" />
+
+                              <div>
+                                <div className="flex justify-between items-center mb-3">
+                                  <Text strong className="text-sm text-slate-800">Danh sách trường nhập liệu (Doanh nghiệp)</Text>
+                                  <Space>
+                                    <Badge count={`${config.enterprise.fields?.filter(f => f.enabled).length || 0} trường kích hoạt`} color="blue" />
+                                    <Button
+                                      type="primary"
+                                      size="small"
+                                      icon={<PlusOutlined />}
+                                      onClick={() => openAddFieldModal('enterprise')}
+                                      className="bg-blue-600 border-none text-xs"
+                                    >
+                                      Thêm trường
+                                    </Button>
+                                  </Space>
+                                </div>
+                                <Table
+                                  dataSource={config.enterprise.fields}
+                                  columns={tableColumns('enterprise')}
+                                  pagination={false}
+                                  loading={false}
+                                  rowKey="key"
+                                  size="small"
+                                  bordered
+                                  className="shadow-sm rounded-lg overflow-hidden"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )
@@ -465,59 +474,65 @@ export default function VatConfig() {
                   ),
                   children: (
                     <div className="pt-2">
-                      <div className="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-100 flex items-center justify-between">
-                        <div>
-                          <Text strong className="block mb-1">Kích hoạt hóa đơn Cá nhân</Text>
-                          <Text type="secondary" className="text-xs">Cho phép khách hàng lựa chọn xuất hóa đơn cho cá nhân người mua lẻ</Text>
-                        </div>
-                        <Switch 
-                          checked={config.individual.enabled} 
-                          onChange={(checked) => handleHeaderChange('individual', 'enabled', checked)}
-                        />
-                      </div>
-
-                      {config.individual.enabled && (
-                        <div className="space-y-4">
-                          <div className="flex flex-col gap-1">
-                            <Text strong className="text-xs text-slate-500 uppercase tracking-wider">Tiêu đề biểu mẫu</Text>
-                            <Input 
-                              value={config.individual.title}
-                              onChange={(e) => handleHeaderChange('individual', 'title', e.target.value)}
-                              placeholder="Nhập tiêu đề hiển thị"
-                              className="rounded-lg h-9"
-                            />
-                          </div>
-
-                          <Divider className="my-4" />
-
-                          <div>
-                            <div className="flex justify-between items-center mb-3">
-                              <Text strong className="text-sm text-slate-800">Danh sách trường nhập liệu (Cá nhân)</Text>
-                              <Space>
-                                <Badge count={`${config.individual.fields?.filter(f => f.enabled).length || 0} trường kích hoạt`} color="orange" />
-                                <Button 
-                                  type="primary" 
-                                  size="small" 
-                                  icon={<PlusOutlined />} 
-                                  onClick={() => openAddFieldModal('individual')}
-                                  className="bg-orange-500 hover:bg-orange-600 border-none text-xs"
-                                >
-                                  Thêm trường
-                                </Button>
-                              </Space>
+                      {showConfigSkeleton ? (
+                        <DataSectionSkeleton rows={6} titleKey="vat_config_loading_title" />
+                      ) : (
+                        <>
+                          <div className="bg-slate-50 p-4 rounded-xl mb-4 border border-slate-100 flex items-center justify-between">
+                            <div>
+                              <Text strong className="block mb-1">Kích hoạt hóa đơn Cá nhân</Text>
+                              <Text type="secondary" className="text-xs">Cho phép khách hàng lựa chọn xuất hóa đơn cho cá nhân người mua lẻ</Text>
                             </div>
-                            <Table 
-                              dataSource={config.individual.fields}
-                              columns={tableColumns('individual')}
-                              pagination={false}
-                              loading={loading}
-                              rowKey="key"
-                              size="small"
-                              bordered
-                              className="shadow-sm rounded-lg overflow-hidden"
+                            <Switch
+                              checked={config.individual.enabled}
+                              onChange={(checked) => handleHeaderChange('individual', 'enabled', checked)}
                             />
                           </div>
-                        </div>
+
+                          {config.individual.enabled && (
+                            <div className="space-y-4">
+                              <div className="flex flex-col gap-1">
+                                <Text strong className="text-xs text-slate-500 uppercase tracking-wider">Tiêu đề biểu mẫu</Text>
+                                <Input
+                                  value={config.individual.title}
+                                  onChange={(e) => handleHeaderChange('individual', 'title', e.target.value)}
+                                  placeholder="Nhập tiêu đề hiển thị"
+                                  className="rounded-lg h-9"
+                                />
+                              </div>
+
+                              <Divider className="my-4" />
+
+                              <div>
+                                <div className="flex justify-between items-center mb-3">
+                                  <Text strong className="text-sm text-slate-800">Danh sách trường nhập liệu (Cá nhân)</Text>
+                                  <Space>
+                                    <Badge count={`${config.individual.fields?.filter(f => f.enabled).length || 0} trường kích hoạt`} color="orange" />
+                                    <Button
+                                      type="primary"
+                                      size="small"
+                                      icon={<PlusOutlined />}
+                                      onClick={() => openAddFieldModal('individual')}
+                                      className="bg-orange-500 hover:bg-orange-600 border-none text-xs"
+                                    >
+                                      Thêm trường
+                                    </Button>
+                                  </Space>
+                                </div>
+                                <Table
+                                  dataSource={config.individual.fields}
+                                  columns={tableColumns('individual')}
+                                  pagination={false}
+                                  loading={false}
+                                  rowKey="key"
+                                  size="small"
+                                  bordered
+                                  className="shadow-sm rounded-lg overflow-hidden"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )
@@ -530,7 +545,7 @@ export default function VatConfig() {
         {/* Real-time Dynamic UI Preview Column */}
         <Col xs={24} lg={9}>
           <div className="sticky top-6">
-            <Card 
+            <Card
               title={
                 <div className="flex items-center gap-2 py-1">
                   <EyeOutlined className="text-emerald-600" />
@@ -541,13 +556,13 @@ export default function VatConfig() {
               className="shadow-md rounded-xl border border-slate-100 overflow-hidden"
               extra={
                 <div className="flex bg-slate-100 p-1 rounded-lg text-xs font-semibold">
-                  <button 
+                  <button
                     onClick={() => setPreviewMode('ui')}
                     className={`px-3 py-1 rounded-md transition-all ${previewMode === 'ui' ? 'bg-white shadow-sm text-blue-600 font-bold' : 'text-slate-500 hover:text-slate-800'}`}
                   >
                     Giao diện (UI)
                   </button>
-                  <button 
+                  <button
                     onClick={() => setPreviewMode('json')}
                     className={`px-3 py-1 rounded-md transition-all ${previewMode === 'json' ? 'bg-white shadow-sm text-blue-600 font-bold' : 'text-slate-500 hover:text-slate-800'}`}
                   >
@@ -564,10 +579,10 @@ export default function VatConfig() {
                       Đây là cấu trúc <strong>JSONB</strong> đầy đủ sẽ được lưu trực tiếp vào cơ sở dữ liệu khi nhấn <strong>Lưu Cấu Hình</strong>. Bạn có thể lưu nguyên trường JSONB này ở backend.
                     </span>
                   </div>
-                  
+
                   <div className="relative group">
                     <div className="absolute top-2 right-2 flex gap-2 z-10">
-                      <button 
+                      <button
                         onClick={() => {
                           setRawJsonInput(JSON.stringify(config, null, 2));
                           setIsImportJsonModalOpen(true);
@@ -576,7 +591,7 @@ export default function VatConfig() {
                       >
                         Nhập JSONB Raw
                       </button>
-                      <button 
+                      <button
                         onClick={() => {
                           navigator.clipboard.writeText(JSON.stringify(config, null, 2));
                           message.success("Đã sao chép cấu trúc JSONB thành công!");
@@ -603,7 +618,7 @@ export default function VatConfig() {
                   {/* Simulated Client Interface Mock */}
                   <div className="border border-slate-200 rounded-2xl bg-white p-4 shadow-sm relative">
                     <div className="absolute top-0 right-0 left-0 h-1.5 bg-blue-600 rounded-t-2xl"></div>
-                    
+
                     {/* Simulated Header */}
                     <div className="text-center mt-3 mb-5">
                       <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 mb-1.5">
@@ -618,13 +633,13 @@ export default function VatConfig() {
                     {/* Tab select preview if both enabled */}
                     {config.enterprise.enabled && config.individual.enabled && (
                       <div className="flex bg-slate-100 p-0.5 rounded-lg mb-4 text-xs">
-                        <button 
+                        <button
                           className={`flex-1 py-1 rounded-md text-center transition-all font-medium ${activeTab === 'enterprise' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
                           onClick={() => setActiveTab('enterprise')}
                         >
                           Doanh nghiệp
                         </button>
-                        <button 
+                        <button
                           className={`flex-1 py-1 rounded-md text-center transition-all font-medium ${activeTab === 'individual' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
                           onClick={() => setActiveTab('individual')}
                         >
@@ -636,10 +651,10 @@ export default function VatConfig() {
                     {/* Render Fields Preview */}
                     <div className="space-y-3">
                       {(!config[activeTab as 'individual' | 'enterprise']?.enabled) ? (
-                        <Alert 
-                          type="warning" 
-                          message="Tính năng đang tắt" 
-                          description="Hãy bật cấu hình này ở cột bên trái để hiển thị biểu mẫu." 
+                        <Alert
+                          type="warning"
+                          message="Tính năng đang tắt"
+                          description="Hãy bật cấu hình này ở cột bên trái để hiển thị biểu mẫu."
                           className="rounded-lg text-xs"
                         />
                       ) : (
@@ -657,11 +672,11 @@ export default function VatConfig() {
                               )}
                               {field.type === 'checkbox' ? (
                                 <div className="flex items-start gap-2 py-1">
-                                  <input 
-                                    type="checkbox" 
-                                    disabled 
-                                    checked={field.defaultValue === 'true'} 
-                                    className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
+                                  <input
+                                    type="checkbox"
+                                    disabled
+                                    checked={field.defaultValue === 'true'}
+                                    className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                   />
                                   <div className="flex flex-col">
                                     <label className="text-[11px] font-semibold text-slate-600">
@@ -678,17 +693,17 @@ export default function VatConfig() {
                                   {field.options?.map(o => <option key={o.value}>{o.text}</option>)}
                                 </select>
                               ) : field.type === 'textarea' ? (
-                                <textarea 
-                                  className="text-xs border border-slate-200 rounded-lg bg-slate-50 px-2 py-1.5 text-slate-700 outline-none w-full resize-none" 
-                                  rows={2} 
-                                  placeholder={field.placeholder} 
-                                  disabled 
+                                <textarea
+                                  className="text-xs border border-slate-200 rounded-lg bg-slate-50 px-2 py-1.5 text-slate-700 outline-none w-full resize-none"
+                                  rows={2}
+                                  placeholder={field.placeholder}
+                                  disabled
                                 />
                               ) : (
-                                <input 
-                                  className="h-8 text-xs border border-slate-200 rounded-lg bg-slate-50 px-2 text-slate-700 outline-none w-full" 
-                                  placeholder={field.placeholder} 
-                                  disabled 
+                                <input
+                                  className="h-8 text-xs border border-slate-200 rounded-lg bg-slate-50 px-2 text-slate-700 outline-none w-full"
+                                  placeholder={field.placeholder}
+                                  disabled
                                 />
                               )}
                             </div>
@@ -902,9 +917,9 @@ export default function VatConfig() {
             <Button onClick={() => setIsImportJsonModalOpen(false)} className="rounded-lg h-9">
               Hủy
             </Button>
-            <Button 
-              type="primary" 
-              onClick={handleImportJson} 
+            <Button
+              type="primary"
+              onClick={handleImportJson}
               className="rounded-lg h-9 bg-indigo-600 border-none text-white font-semibold"
             >
               Áp dụng JSONB

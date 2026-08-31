@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Table, Button, Dropdown, Popover, Checkbox, Space, Input, Tooltip, Typography, App, Badge, Divider, Empty } from 'antd';
+import { Table, Button, Dropdown, Popover, Checkbox, Space, Input, Tooltip, Typography, Badge, Divider, Empty } from 'antd';
 import type { TableProps, MenuProps } from 'antd';
 import type { ColumnType } from 'antd/es/table';
 import { 
@@ -30,6 +30,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { useTranslation } from 'react-i18next';
+import { message } from '../services/toastMessage';
 import './SmartTable.css';
 
 interface SmartHeaderCellProps extends React.HTMLAttributes<any> {
@@ -232,8 +233,6 @@ export function SmartTable<T extends { key?: React.Key }>(props: SmartTableProps
       return hasSameColumnState ? prev : nextColumns;
     });
   }, [initialColumns]);
-
-  const { message } = App.useApp();
 
   const handleExport = (format: 'csv' | 'excel' | 'pdf') => {
     if (onBatchExport) {

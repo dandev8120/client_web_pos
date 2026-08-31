@@ -14,7 +14,6 @@ import {
   Rate, 
   Space, 
   Typography, 
-  App,
   Tabs,
   Steps,
   Divider,
@@ -45,6 +44,7 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'motion/react';
 
 import PageContainer from '../components/PageContainer';
+import { message } from '../services/toastMessage';
 
 const { Title, Paragraph, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -52,7 +52,6 @@ const { TextArea } = Input;
 
 export const Forms: React.FC = () => {
   const { t } = useTranslation();
-  const { message } = App.useApp();
   const [activeTab, setActiveTab] = useState('common-forms');
   const [currentStep, setCurrentStep] = useState(0);
 

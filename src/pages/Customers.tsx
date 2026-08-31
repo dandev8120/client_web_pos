@@ -25,18 +25,20 @@ import { SmartTable } from '../components/SmartTable';
 import { hasButtonPermission } from '../utils/rbacPresets';
 import { customerService } from '../services/customerService';
 import { CustomerResponseDto, CustomerRequestDto, CustomerMapper } from '../dtos/CustomerDto';
+import { message } from '../services/toastMessage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 export type CustomerRecord = CustomerResponseDto;
 
 const Customers: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { modal, message } = App.useApp();
+  const { modal } = App.useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const [form] = Form.useForm();
 
   // Active User session from localStorage for RBAC checks
   const loggedUser = useMemo(() => {
-    const saved = localStorage.getItem('@@WEB_POS_PORTAL');
+    const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
     return saved ? JSON.parse(saved) : null;
   }, []);
 

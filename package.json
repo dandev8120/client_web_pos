@@ -31,6 +31,8 @@
     "domexception": "^4.0.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "framer-motion": "^13.1.1",
+    "goey-toast": "^0.5.0",
     "highcharts": "^12.6.0",
     "highcharts-react-official": "^3.2.3",
     "i18next": "^26.1.0",

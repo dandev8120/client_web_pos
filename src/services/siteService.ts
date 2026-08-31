@@ -1,6 +1,7 @@
 import { apiClient } from '../api/apiClient';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
-export const TENANT_BRANCHES_STORAGE_KEY = 'TENANT_BRANCHS';
+export const TENANT_BRANCHES_STORAGE_KEY = STORAGE_KEYS.TENANT_BRANCHES;
 export const TENANT_BRANCHES_UPDATED_EVENT = 'tenant-branches-updated';
 
 export interface TenantBranchGroup {
@@ -23,37 +24,68 @@ export interface TenantBranch {
   nhomSite?: TenantBranchGroup | null;
 }
 
+type RawRecord = Record<string, unknown>;
+
 function textValue(value: unknown) {
   return value === undefined || value === null ? '' : String(value).trim();
 }
 
-function normalizeBranch(raw: any): TenantBranch | null {
-  const maSite = textValue(raw?.maSite ?? raw?.MaSite ?? raw?.storeId);
+function isRecord(value: unknown): value is RawRecord {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function pickValue(source: RawRecord, ...keys: string[]) {
+  for (const key of keys) {
+    if (source[key] !== undefined) {
+      return source[key];
+    }
+  }
+
+  return undefined;
+}
+
+function pickText(source: RawRecord, ...keys: string[]) {
+  return textValue(pickValue(source, ...keys));
+}
+
+function pickRecord(source: RawRecord, ...keys: string[]) {
+  const value = pickValue(source, ...keys);
+  return isRecord(value) ? value : null;
+}
+
+function pickBoolean(source: RawRecord, ...keys: string[]) {
+  const value = pickValue(source, ...keys);
+  return typeof value === 'boolean' ? value : null;
+}
+
+function normalizeBranch(raw: unknown): TenantBranch | null {
+  if (!isRecord(raw)) return null;
+
+  const maSite = pickText(raw, 'maSite', 'MaSite', 'storeId');
   if (!maSite) return null;
 
-  const nhomSite = raw?.nhomSite ?? raw?.NhomSite ?? null;
-  const maNhomSite = textValue(raw?.maNhomSite ?? raw?.MaNhomSite ?? nhomSite?.maNhomSite ?? nhomSite?.MaNhomSite);
+  const nhomSite = pickRecord(raw, 'nhomSite', 'NhomSite');
+  const maNhomSite = textValue(
+    pickValue(raw, 'maNhomSite', 'MaNhomSite')
+    ?? (nhomSite ? pickValue(nhomSite, 'maNhomSite', 'MaNhomSite') : undefined)
+  );
 
   return {
     maSite,
-    tenSite: textValue(raw?.tenSite ?? raw?.TenSite) || null,
-    ng_DK: raw?.ng_DK ?? raw?.Ng_DK ?? null,
+    tenSite: pickText(raw, 'tenSite', 'TenSite') || null,
+    ng_DK: pickText(raw, 'ng_DK', 'Ng_DK') || null,
     maNhomSite: maNhomSite || null,
-    status: typeof raw?.status === 'boolean'
-      ? raw.status
-      : typeof raw?.Status === 'boolean'
-        ? raw.Status
-        : null,
-    diaChi: textValue(raw?.diaChi ?? raw?.DiaChi) || null,
-    timeOpen: raw?.timeOpen ?? raw?.TimeOpen ?? null,
-    timeClose: raw?.timeClose ?? raw?.TimeClose ?? null,
-    phone: textValue(raw?.phone ?? raw?.Phone) || null,
-    tinh: textValue(raw?.tinh ?? raw?.Tinh) || null,
+    status: pickBoolean(raw, 'status', 'Status'),
+    diaChi: pickText(raw, 'diaChi', 'DiaChi') || null,
+    timeOpen: pickText(raw, 'timeOpen', 'TimeOpen') || null,
+    timeClose: pickText(raw, 'timeClose', 'TimeClose') || null,
+    phone: pickText(raw, 'phone', 'Phone') || null,
+    tinh: pickText(raw, 'tinh', 'Tinh') || null,
     nhomSite: nhomSite
       ? {
-          maNhomSite: textValue(nhomSite.maNhomSite ?? nhomSite.MaNhomSite ?? maNhomSite) || null,
-          tenNhomSite: textValue(nhomSite.tenNhomSite ?? nhomSite.TenNhomSite) || null,
-          ng_DK: nhomSite.ng_DK ?? nhomSite.Ng_DK ?? null,
+          maNhomSite: textValue(pickValue(nhomSite, 'maNhomSite', 'MaNhomSite') ?? maNhomSite) || null,
+          tenNhomSite: pickText(nhomSite, 'tenNhomSite', 'TenNhomSite') || null,
+          ng_DK: pickText(nhomSite, 'ng_DK', 'Ng_DK') || null,
         }
       : null,
   };
@@ -62,8 +94,8 @@ function normalizeBranch(raw: any): TenantBranch | null {
 function normalizeBranches(data: unknown): TenantBranch[] {
   const source = Array.isArray(data)
     ? data
-    : Array.isArray((data as any)?.data)
-      ? (data as any).data
+    : isRecord(data) && Array.isArray(data.data)
+      ? data.data
       : [];
 
   const branches = source

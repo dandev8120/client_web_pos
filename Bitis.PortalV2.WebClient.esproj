@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.5984942">
   <PropertyGroup>
-    <StartupCommand>npm run dev</StartupCommand>
-    <BuildCommand>npm run build</BuildCommand>
-    <CleanCommand>npm run clean</CleanCommand>
-    <TestCommand>npm run lint</TestCommand>
+    <StartupCommand>pnpm dev</StartupCommand>
+    <BuildCommand>pnpm build</BuildCommand>
+    <CleanCommand>pnpm clean</CleanCommand>
+    <TestCommand>pnpm lint</TestCommand>
     <LaunchJsonFolder>.vscode</LaunchJsonFolder>
     <ShouldRunNpmInstall>true</ShouldRunNpmInstall>
     <ShouldRunBuildScript>true</ShouldRunBuildScript>

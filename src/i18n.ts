@@ -150,7 +150,17 @@ const resources = {
       "notification_new_order": "New Order Received",
       "notification_payment": "Payment Confirmed",
       "notification_inventory": "Inventory Alert",
-      "check_all_messages": "Check all messages"
+      "check_all_messages": "Check all messages",
+      "section_loading_title": "Loading data",
+      "orders_loading_title": "Loading order list",
+      "order_detail_loading_title": "Loading order details",
+      "invoice_loading_title": "Loading invoice data",
+      "vat_config_loading_title": "Loading VAT configuration",
+      "network_offline_title": "Connection lost",
+      "network_offline_description": "The application is offline. Some data may not refresh until the connection is restored.",
+      "network_offline_banner": "You are offline. Please check your network connection.",
+      "network_online_title": "Connected",
+      "network_online_description": "Network connection has been restored."
     }
   },
   vi: {
@@ -300,7 +310,17 @@ const resources = {
       "notification_new_order": "Đơn hàng mới",
       "notification_payment": "Thanh toán đã xác nhận",
       "notification_inventory": "Cảnh báo tồn kho",
-      "check_all_messages": "Xem tất cả tin nhắn"
+      "check_all_messages": "Xem tất cả tin nhắn",
+      "section_loading_title": "Đang tải dữ liệu",
+      "orders_loading_title": "Đang tải danh sách đơn hàng",
+      "order_detail_loading_title": "Đang tải chi tiết đơn hàng",
+      "invoice_loading_title": "Đang tải dữ liệu hóa đơn",
+      "vat_config_loading_title": "Đang tải cấu hình VAT",
+      "network_offline_title": "Mất kết nối mạng",
+      "network_offline_description": "Ứng dụng đang ngoại tuyến. Một số dữ liệu có thể chưa làm mới cho đến khi có mạng trở lại.",
+      "network_offline_banner": "Bạn đang mất kết nối mạng. Vui lòng kiểm tra lại đường truyền.",
+      "network_online_title": "Đã có mạng trở lại",
+      "network_online_description": "Kết nối mạng đã được khôi phục."
     }
   }
 };

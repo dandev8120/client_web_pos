@@ -29,6 +29,8 @@ import { SmartTable } from '../components/SmartTable';
 import { hasButtonPermission } from '../utils/rbacPresets';
 import { promotionService } from '../services/promotionService';
 import { productService } from '../services/productService';
+import { message } from '../services/toastMessage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 // SẢN PHẨM LIÊN KẾT KHI CẤU HÌNH (Lấy động từ productService)
 const DEFAULT_PRODUCTS = productService.getProducts().map(p => ({
@@ -241,11 +243,11 @@ function CheckboxMultiSelect({
 }
 
 export default function Promotions() {
-  const { message, modal } = App.useApp();
+  const { modal } = App.useApp();
 
   // Active User session from localStorage for RBAC checks
   const loggedUser = useMemo(() => {
-    const saved = localStorage.getItem('@@WEB_POS_PORTAL');
+    const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
     return saved ? JSON.parse(saved) : null;
   }, []);
 
@@ -483,13 +485,13 @@ export default function Promotions() {
         }
       ];
       setConsoleMenus(defaultMenus);
-      localStorage.setItem('pos_console_menus', JSON.stringify(defaultMenus));
+      localStorage.setItem(STORAGE_KEYS.POS_CONSOLE_MENUS, JSON.stringify(defaultMenus));
     }
   }, [consoleMenus]);
 
   // Persist Visual presets
   useEffect(() => {
-    localStorage.setItem('pos_promo_presets', JSON.stringify(visualPresets));
+    localStorage.setItem(STORAGE_KEYS.PROMO_PRESETS, JSON.stringify(visualPresets));
   }, [visualPresets]);
 
   // Recursively extract all promos from console tree
@@ -860,11 +862,11 @@ export default function Promotions() {
     const updatedTree = addPromoToTree([...consoleMenus], folderKey, clonedPromo);
 
     setConsoleMenus(updatedTree);
-    localStorage.setItem('pos_console_menus', JSON.stringify(updatedTree));
+    localStorage.setItem(STORAGE_KEYS.POS_CONSOLE_MENUS, JSON.stringify(updatedTree));
     
     // Save flat representation
     const flatPromosUpdated = extractPromotions(updatedTree);
-    localStorage.setItem('pos_promotions', JSON.stringify(flatPromosUpdated));
+    localStorage.setItem(STORAGE_KEYS.POS_PROMOTIONS, JSON.stringify(flatPromosUpdated));
 
     message.success(`Đã sao chép chương trình thành công thành "${newName}"!`);
   };
@@ -968,10 +970,10 @@ export default function Promotions() {
   const handleDeletePromo = (promoId: string) => {
     const updatedTree = deletePromoFromTree(consoleMenus, promoId);
     setConsoleMenus(updatedTree);
-    localStorage.setItem('pos_console_menus', JSON.stringify(updatedTree));
+    localStorage.setItem(STORAGE_KEYS.POS_CONSOLE_MENUS, JSON.stringify(updatedTree));
     
     const remainingPromos = extractPromotions(updatedTree);
-    localStorage.setItem('pos_promotions', JSON.stringify(remainingPromos));
+    localStorage.setItem(STORAGE_KEYS.POS_PROMOTIONS, JSON.stringify(remainingPromos));
     
     message.success('Đã xóa thành công chương trình ưu đãi!');
   };
@@ -1508,11 +1510,11 @@ export default function Promotions() {
     }
 
     setConsoleMenus(updatedTree);
-    localStorage.setItem('pos_console_menus', JSON.stringify(updatedTree));
+    localStorage.setItem(STORAGE_KEYS.POS_CONSOLE_MENUS, JSON.stringify(updatedTree));
     
     // Save flat representation
     const flatPromos = extractPromotions(updatedTree);
-    localStorage.setItem('pos_promotions', JSON.stringify(flatPromos));
+    localStorage.setItem(STORAGE_KEYS.POS_PROMOTIONS, JSON.stringify(flatPromos));
 
     // Reset forms & go back to list
     handleResetWizard();
@@ -1538,11 +1540,11 @@ export default function Promotions() {
     updatedTree = updatePromoInTree(updatedTree, promoToExtend.id, updatedPayload);
     
     setConsoleMenus(updatedTree);
-    localStorage.setItem('pos_console_menus', JSON.stringify(updatedTree));
+    localStorage.setItem(STORAGE_KEYS.POS_CONSOLE_MENUS, JSON.stringify(updatedTree));
     
     // Save flat representation
     const flatPromos = extractPromotions(updatedTree);
-    localStorage.setItem('pos_promotions', JSON.stringify(flatPromos));
+    localStorage.setItem(STORAGE_KEYS.POS_PROMOTIONS, JSON.stringify(flatPromos));
 
     // If currently viewing detailed promo, update the viewed object
     if (selectedDetailPromo && selectedDetailPromo.id === promoToExtend.id) {
@@ -1569,10 +1571,10 @@ export default function Promotions() {
     
     updatedTree = updatePromoInTree(updatedTree, promoId, updatedPayload);
     setConsoleMenus(updatedTree);
-    localStorage.setItem('pos_console_menus', JSON.stringify(updatedTree));
+    localStorage.setItem(STORAGE_KEYS.POS_CONSOLE_MENUS, JSON.stringify(updatedTree));
     
     const flatPromos = extractPromotions(updatedTree);
-    localStorage.setItem('pos_promotions', JSON.stringify(flatPromos));
+    localStorage.setItem(STORAGE_KEYS.POS_PROMOTIONS, JSON.stringify(flatPromos));
     
     if (selectedDetailPromo && selectedDetailPromo.id === promoId) {
       setSelectedDetailPromo(updatedPayload);
@@ -1648,10 +1650,10 @@ export default function Promotions() {
         throw new Error('Dữ liệu Cây danh mục phải là một mảng [] cấu trúc lồng.');
       }
       setConsoleMenus(parsed);
-      localStorage.setItem('pos_console_menus', JSON.stringify(parsed));
+      localStorage.setItem(STORAGE_KEYS.POS_CONSOLE_MENUS, JSON.stringify(parsed));
       
       const calculatedPromos = extractPromotions(parsed);
-      localStorage.setItem('pos_promotions', JSON.stringify(calculatedPromos));
+      localStorage.setItem(STORAGE_KEYS.POS_PROMOTIONS, JSON.stringify(calculatedPromos));
       
       modal.success({
         title: 'Đồng bộ JSONB thành công!',
@@ -1819,9 +1821,9 @@ export default function Promotions() {
                   okText: 'Xác nhận Reset',
                   cancelText: 'Hủy bỏ',
                   onOk: () => {
-                    localStorage.removeItem('pos_console_menus');
-                    localStorage.removeItem('pos_promotions');
-                    localStorage.removeItem('pos_promo_presets');
+                    localStorage.removeItem(STORAGE_KEYS.POS_CONSOLE_MENUS);
+                    localStorage.removeItem(STORAGE_KEYS.POS_PROMOTIONS);
+                    localStorage.removeItem(STORAGE_KEYS.PROMO_PRESETS);
                     window.location.reload();
                   }
                 });

@@ -1,7 +1,8 @@
 import seedProductsJson from '../seed/seedProducts.json';
 import { ProductRequestDto, ProductResponseDto, ProductStatsDto, ProductMapper } from '../dtos/ProductDto';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
-const LOCAL_STORAGE_KEY = '@@SEED_PRODUCTS_DATA';
+const LOCAL_STORAGE_KEY = STORAGE_KEYS.PRODUCTS;
 
 export class ProductService {
   /**

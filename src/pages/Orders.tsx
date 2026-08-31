@@ -20,7 +20,6 @@ import {
   Pagination,
   Divider,
   Modal,
-  Spin,
   Empty,
   Alert
 } from 'antd';
@@ -68,6 +67,10 @@ import { StatusIndicator } from '../components/orders/StatusIndicator';
 import { OrderStatsOverview } from '../components/orders/OrderStatsOverview';
 import { OrderMobileCard } from '../components/orders/OrderMobileCard';
 import { OrderFilterBar } from '../components/orders/OrderFilterBar';
+import { message } from '../services/toastMessage';
+import { DataSectionSkeleton } from '../components/DataSectionSkeleton';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 const FancyUpload = React.lazy(() => import('../components/FancyUpload'));
 const POSOrder = React.lazy(() => import('../components/POSOrder'));
@@ -123,7 +126,7 @@ const CollapsibleSection: React.FC<{
 export const Orders: React.FC = () => {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { message, modal } = App.useApp();
+  const { modal } = App.useApp();
 
   const [dataSource, setDataSource] = useState<DataType[]>(initialDataSource);
   const [form] = Form.useForm();
@@ -180,7 +183,7 @@ export const Orders: React.FC = () => {
   // Permission Checks for Current Logged User
   const [currentUserSession, setCurrentUserSession] = useState<any>(() => {
     try {
-      const saved = localStorage.getItem('@@WEB_POS_PORTAL');
+      const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -190,7 +193,7 @@ export const Orders: React.FC = () => {
   useEffect(() => {
     const handleSync = () => {
       try {
-        const saved = localStorage.getItem('@@WEB_POS_PORTAL');
+        const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
         if (saved) setCurrentUserSession(JSON.parse(saved));
       } catch (e) {
         console.error('Error syncing user session', e);
@@ -296,6 +299,7 @@ export const Orders: React.FC = () => {
 
   // POST Search states
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const showOrdersLoadingSkeleton = useDelayedLoading(isLoading, 400);
   const [postSearchResults, setPostSearchResults] = useState<DataType[]>([]);
   const [postTotalCount, setPostTotalCount] = useState<number>(0);
   const [postPayloadUsed, setPostPayloadUsed] = useState<OrderSearchPayloadDto | null>(null);
@@ -439,7 +443,7 @@ export const Orders: React.FC = () => {
       .catch(err => {
         console.warn('POST searchReceipts API catch:', err);
         if (isMounted) {
-          message.warning(`Cảnh báo ${err instanceof Error ? err.message : 'Có lỗi xảy ra'}`);
+          message.warning(`${err instanceof Error ? err.message : 'Có lỗi xảy ra'}`);
           setPostSearchResults([]);
           setPostTotalCount(0);
           setPostSearchSignatureUsed('');
@@ -455,6 +459,7 @@ export const Orders: React.FC = () => {
   // Detail View API State & Fetching
   const [detailOrder, setDetailOrder] = useState<DataType | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState<boolean>(false);
+  const showDetailLoadingSkeleton = useDelayedLoading(isLoadingDetail, 400);
   const [detailLoadingStatus, setDetailLoadingStatus] = useState<string>('Đang kết nối và lấy dữ liệu chi tiết chứng từ từ máy chủ POS Center...');
   const [detailElapsedSeconds, setDetailElapsedSeconds] = useState<number>(0);
 
@@ -607,17 +612,24 @@ export const Orders: React.FC = () => {
   };
 
   const handleRefresh = () => {
-    setSearchParams(prev => {
-      prev.set('forceRefresh', 'true');
-      return prev;
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+
+      if (![...params].length) {
+        params.set('page', '1');
+        params.set('pageSize', '10');
+      }
+
+      params.set('forceRefresh', 'true');
+      return params;
     });
-    message.success('Làm mới dữ liệu thành công.');
+    message.success('Đã gửi yêu cầu làm mới dữ liệu.');
   };
 
   const handleReset = () => {
     form.resetFields();
     setSearchParams({});
-    message.info('Đã xóa tất cả bộ lọc. Trang ở trạng thái chờ truy vấn.');
+    message.info('Đã làm mới điều kiện tra cứu. Vui lòng nhập thông tin chứng từ cần tìm.');
   };
 
   const handleQuickLoadDefault = () => {
@@ -1237,9 +1249,12 @@ export const Orders: React.FC = () => {
 
       {/* Search API results display table */}
       <div className="space-y-3">
+        {showOrdersLoadingSkeleton ? (
+          <DataSectionSkeleton rows={Math.min(tableTargetRows, 10)} titleKey="orders_loading_title" />
+        ) : (
         <div className="overflow-hidden border border-slate-200/80 rounded-xl bg-white">
           <SmartTable
-            loading={isLoading}
+            loading={false}
             rowSelection={{
               selectedRowKeys,
               onChange: setSelectedRowKeys,
@@ -1310,6 +1325,7 @@ export const Orders: React.FC = () => {
             }}
           />
         </div>
+        )}
       </div>
     </div>
   );
@@ -1334,36 +1350,32 @@ export const Orders: React.FC = () => {
         noCard={true}
       >
         {isLoadingDetail ? (
-          <div className="p-8 sm:p-12 text-center bg-white rounded-xl shadow-sm border border-slate-200 my-4 flex flex-col items-center justify-center gap-4 max-w-2xl mx-auto">
-            <Spin size="large" />
-            
-            <div className="flex flex-col gap-1 items-center">
-              <div className="text-slate-800 font-semibold text-base sm:text-lg">
-                Đang tải chi tiết chứng từ {receiptParam}
-              </div>
-              <div className="text-slate-600 font-medium text-sm max-w-lg">
-                {detailLoadingStatus}
+          showDetailLoadingSkeleton ? (
+            <div className="my-4 mx-auto max-w-3xl space-y-4">
+              <DataSectionSkeleton rows={5} titleKey="order_detail_loading_title" />
+              <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+                <div className="font-semibold text-slate-800">Đang tải chi tiết chứng từ {receiptParam}</div>
+                <div className="mt-1 text-slate-600">{detailLoadingStatus}</div>
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-mono text-slate-700">
+                  <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
+                  <span>Thời gian xử lý: {detailElapsedSeconds}s / {Math.round((API_CONFIG.timeout || 30000) / 1000)}s</span>
+                </div>
+
+                {detailElapsedSeconds >= 5 && (
+                  <Alert
+                    type={detailElapsedSeconds >= 10 ? "warning" : "info"}
+                    showIcon
+                    message={
+                      detailElapsedSeconds >= 10
+                        ? "Máy chủ POS Center đang xử lý dữ liệu. Hệ thống đang giữ kết nối cho đến khi máy chủ phản hồi hoàn tất."
+                        : "Đang truy vấn dữ liệu POS Center. Vui lòng giữ kết nối."
+                    }
+                    className="mt-3 text-xs"
+                  />
+                )}
               </div>
             </div>
-
-            <div className="flex items-center gap-2 bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full text-xs font-mono">
-              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-              <span>Thời gian xử lý: {detailElapsedSeconds}s / {Math.round((API_CONFIG.timeout || 30000) / 1000)}s</span>
-            </div>
-
-            {detailElapsedSeconds >= 5 && (
-              <Alert
-                type={detailElapsedSeconds >= 10 ? "warning" : "info"}
-                showIcon
-                message={
-                  detailElapsedSeconds >= 10
-                    ? "Máy chủ POS Center đang xử lý dữ liệu. Hệ thống đang giữ kết nối cho đến khi máy chủ phản hồi hoàn tất."
-                    : "Đang truy vấn dữ liệu POS Center. Vui lòng giữ kết nối."
-                }
-                className="text-xs text-left w-full mt-2"
-              />
-            )}
-          </div>
+          ) : null
         ) : detailOrder ? (
           <>
             <OrderDetailView 
@@ -1404,7 +1416,7 @@ export const Orders: React.FC = () => {
           message.success('Đơn hàng đã được tạo thành công!');
         }}
         currentUser={(() => {
-          const saved = localStorage.getItem('@@WEB_POS_PORTAL');
+          const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
           return saved ? JSON.parse(saved) : null;
         })()}
       />

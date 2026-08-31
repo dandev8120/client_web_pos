@@ -11,6 +11,7 @@ import {
 import { logAction } from '../utils/auditLogger';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 const { Title, Text } = Typography;
 
@@ -255,7 +256,7 @@ export default function POSOrder({ onClose, onComplete, currentUser }: POSOrderP
 
   // Dynamically configured menu hierarchy state
   const [consoleMenus, setConsoleMenus] = useState<any[]>(() => {
-    const saved = localStorage.getItem('pos_console_menus');
+    const saved = localStorage.getItem(STORAGE_KEYS.POS_CONSOLE_MENUS);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -472,7 +473,7 @@ export default function POSOrder({ onClose, onComplete, currentUser }: POSOrderP
         actionView: 'payment_gate'
       }
     ];
-    localStorage.setItem('pos_console_menus', JSON.stringify(defaultMenus));
+    localStorage.setItem(STORAGE_KEYS.POS_CONSOLE_MENUS, JSON.stringify(defaultMenus));
     return defaultMenus;
   });
 
@@ -481,7 +482,7 @@ export default function POSOrder({ onClose, onComplete, currentUser }: POSOrderP
   }, [consoleMenus]);
 
   useEffect(() => {
-    localStorage.setItem('pos_promotions', JSON.stringify(availablePromos));
+    localStorage.setItem(STORAGE_KEYS.POS_PROMOTIONS, JSON.stringify(availablePromos));
   }, [availablePromos]);
 
   // Raw JSON representation for Admin console
@@ -541,7 +542,7 @@ export default function POSOrder({ onClose, onComplete, currentUser }: POSOrderP
 
   // Styling presets and custom campaign forms state
   const [visualPresets, setVisualPresets] = useState<any[]>(() => {
-    const saved = localStorage.getItem('pos_promo_presets');
+    const saved = localStorage.getItem(STORAGE_KEYS.PROMO_PRESETS);
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -559,12 +560,12 @@ export default function POSOrder({ onClose, onComplete, currentUser }: POSOrderP
   });
 
   useEffect(() => {
-    localStorage.setItem('pos_promo_presets', JSON.stringify(visualPresets));
+    localStorage.setItem(STORAGE_KEYS.PROMO_PRESETS, JSON.stringify(visualPresets));
   }, [visualPresets]);
 
   // Sync state from localStorage on mount (ensuring absolute sync when navigating back)
   useEffect(() => {
-    const savedMenus = localStorage.getItem('pos_console_menus');
+    const savedMenus = localStorage.getItem(STORAGE_KEYS.POS_CONSOLE_MENUS);
     if (savedMenus) {
       try {
         setConsoleMenus(JSON.parse(savedMenus));
@@ -572,7 +573,7 @@ export default function POSOrder({ onClose, onComplete, currentUser }: POSOrderP
         console.error("Error parsing pos_console_menus on mount", e);
       }
     }
-    const savedPresets = localStorage.getItem('pos_promo_presets');
+    const savedPresets = localStorage.getItem(STORAGE_KEYS.PROMO_PRESETS);
     if (savedPresets) {
       try {
         setVisualPresets(JSON.parse(savedPresets));
@@ -790,9 +791,9 @@ export default function POSOrder({ onClose, onComplete, currentUser }: POSOrderP
     }
 
     setConsoleMenus(updatedTree);
-    localStorage.setItem('pos_console_menus', JSON.stringify(updatedTree));
+    localStorage.setItem(STORAGE_KEYS.POS_CONSOLE_MENUS, JSON.stringify(updatedTree));
     const flat = extractPromotionsFromTree(updatedTree);
-    localStorage.setItem('pos_promotions', JSON.stringify(flat));
+    localStorage.setItem(STORAGE_KEYS.POS_PROMOTIONS, JSON.stringify(flat));
 
     setPromoFormTitle('');
     setPromoFormId('');
@@ -843,9 +844,9 @@ export default function POSOrder({ onClose, onComplete, currentUser }: POSOrderP
   const handleDeletePromo = (promoKey: string) => {
     const updatedTree = deletePromoFromTree(consoleMenus, promoKey);
     setConsoleMenus(updatedTree);
-    localStorage.setItem('pos_console_menus', JSON.stringify(updatedTree));
+    localStorage.setItem(STORAGE_KEYS.POS_CONSOLE_MENUS, JSON.stringify(updatedTree));
     const flat = extractPromotionsFromTree(updatedTree);
-    localStorage.setItem('pos_promotions', JSON.stringify(flat));
+    localStorage.setItem(STORAGE_KEYS.POS_PROMOTIONS, JSON.stringify(flat));
     
     if (editingPromoKey === promoKey) {
       setEditingPromoKey(null);
@@ -3550,9 +3551,9 @@ export default function POSOrder({ onClose, onComplete, currentUser }: POSOrderP
                 okText: 'Xác nhận Khôi phục',
                 cancelText: 'Hủy bỏ',
                 onOk: () => {
-                  localStorage.removeItem('pos_console_menus');
-                  localStorage.removeItem('pos_promotions');
-                  localStorage.removeItem('pos_promo_presets');
+                  localStorage.removeItem(STORAGE_KEYS.POS_CONSOLE_MENUS);
+                  localStorage.removeItem(STORAGE_KEYS.POS_PROMOTIONS);
+                  localStorage.removeItem(STORAGE_KEYS.PROMO_PRESETS);
                   window.location.reload();
                 }
               });
@@ -4079,11 +4080,11 @@ export default function POSOrder({ onClose, onComplete, currentUser }: POSOrderP
                             
                             // Save tree
                             setConsoleMenus(parsed);
-                            localStorage.setItem('pos_console_menus', JSON.stringify(parsed));
+                            localStorage.setItem(STORAGE_KEYS.POS_CONSOLE_MENUS, JSON.stringify(parsed));
                             
                             // Recalculate promos
                             const calculatedPromos = extractPromotionsFromTree(parsed);
-                            localStorage.setItem('pos_promotions', JSON.stringify(calculatedPromos));
+                            localStorage.setItem(STORAGE_KEYS.POS_PROMOTIONS, JSON.stringify(calculatedPromos));
                             
                             modal.success({
                               title: 'Đồng bộ kết quả thành công',

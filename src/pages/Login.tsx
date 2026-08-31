@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, App, Button, Spin } from 'antd';
+import { Alert, Button, Spin } from 'antd';
 import { LoginOutlined } from '@ant-design/icons';
 import { useAuth } from 'react-oidc-context';
 import { useSearchParams } from 'react-router-dom';
+import { message } from '../services/toastMessage';
 
 const REDIRECT_LOCK_KEY = '@@WEB_POS_OIDC_REDIRECTING';
 const AUTH_RETURN_URL_KEY = '@@WEB_POS_AUTH_RETURN_URL';
@@ -23,7 +24,6 @@ function normalizeReturnPath(value: string | null | undefined) {
 }
 
 export const Login: React.FC = () => {
-  const { message } = App.useApp();
   const auth = useAuth();
   const [searchParams] = useSearchParams();
   const redirectStartedRef = useRef(false);

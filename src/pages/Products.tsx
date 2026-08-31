@@ -62,6 +62,8 @@ import { hasButtonPermission } from '../utils/rbacPresets';
 import { ProductStatsOverview, ProductStats } from '../components/products/ProductStatsOverview';
 import { productService } from '../services/productService';
 import { ProductResponseDto, ProductRequestDto, ProductMapper } from '../dtos/ProductDto';
+import { message } from '../services/toastMessage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 const { Text, Title } = Typography;
 
@@ -119,7 +121,7 @@ const CollapsibleSection: React.FC<{
 
 export const Products: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { message, modal } = App.useApp();
+  const { modal } = App.useApp();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [dataSource, setDataSource] = useState<ProductRecord[]>(() => productService.getProducts());
@@ -151,7 +153,7 @@ export const Products: React.FC = () => {
   // Active User session from localStorage for RBAC checks
   const loggedUser = useMemo(() => {
     try {
-      const saved = localStorage.getItem('@@WEB_POS_PORTAL');
+      const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;

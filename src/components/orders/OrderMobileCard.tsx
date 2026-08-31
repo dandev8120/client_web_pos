@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Dropdown, MenuProps, Tag, App } from 'antd';
+import { Button, Dropdown, MenuProps, Tag } from 'antd';
 import { 
   ClockCircleOutlined, 
   EyeOutlined, 
@@ -14,6 +14,7 @@ import {
 import { DataType } from './orderTypes';
 import { StatusIndicator } from './StatusIndicator';
 import { formatOrderRowToText, parsePaymentDetails } from './orderHelpers';
+import { message } from '../../services/toastMessage';
 
 interface OrderMobileCardProps {
   item: DataType;
@@ -28,8 +29,6 @@ export const OrderMobileCard: React.FC<OrderMobileCardProps> = ({
   onPrint,
   onDelete,
 }) => {
-  const { message } = App.useApp();
-
   const handleCopyText = () => {
     const textToCopy = formatOrderRowToText(item);
     navigator.clipboard.writeText(textToCopy);

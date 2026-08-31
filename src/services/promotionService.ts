@@ -6,10 +6,11 @@ import {
   PromotionResponseDto, 
   PromotionMapper 
 } from '../dtos/PromotionDto';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
-const PRESETS_STORAGE_KEY = 'pos_promo_presets';
-const MENUS_STORAGE_KEY = 'pos_console_menus';
-const PROMOS_STORAGE_KEY = 'pos_promotions_list';
+const PRESETS_STORAGE_KEY = STORAGE_KEYS.PROMO_PRESETS;
+const MENUS_STORAGE_KEY = STORAGE_KEYS.POS_CONSOLE_MENUS;
+const PROMOS_STORAGE_KEY = STORAGE_KEYS.PROMOTIONS_LIST;
 
 export class PromotionService {
   /**

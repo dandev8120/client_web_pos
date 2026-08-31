@@ -2,13 +2,14 @@ import React from 'react';
 import { Button, Result, Layout } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { STORAGE_KEYS } from '../../constants/storageKeys';
 
 export const Error401: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
   const handleBackToLogin = () => {
-    localStorage.removeItem('@@WEB_POS_PORTAL');
+    localStorage.removeItem(STORAGE_KEYS.PORTAL_SESSION);
     window.location.href = '/login';
   };
 

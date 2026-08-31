@@ -1,3 +1,5 @@
+import { STORAGE_KEYS } from '../constants/storageKeys';
+
 export enum LogLevel {
   INFO = 'INFO',
   WARN = 'WARN',
@@ -26,7 +28,7 @@ class LoggerService {
       category,
       details,
       path: window.location.pathname,
-      userId: localStorage.getItem('userId') || 'anonymous',
+      userId: localStorage.getItem(STORAGE_KEYS.USER_ID) || 'anonymous',
     };
 
     this.logs.push(entry);
@@ -44,21 +46,21 @@ class LoggerService {
 
   private persistLogs() {
     try {
-      const persisted = JSON.parse(localStorage.getItem('ui_audit_logs') || '[]');
+      const persisted = JSON.parse(localStorage.getItem(STORAGE_KEYS.UI_AUDIT_LOGS) || '[]');
       persisted.push(this.logs[this.logs.length - 1]);
       if (persisted.length > 500) persisted.shift();
-      localStorage.setItem('ui_audit_logs', JSON.stringify(persisted));
+      localStorage.setItem(STORAGE_KEYS.UI_AUDIT_LOGS, JSON.stringify(persisted));
     } catch (e) {
       console.error('Failed to persist logs', e);
     }
   }
 
   getLogs() {
-    return JSON.parse(localStorage.getItem('ui_audit_logs') || '[]');
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.UI_AUDIT_LOGS) || '[]');
   }
 
   clearLogs() {
-    localStorage.removeItem('ui_audit_logs');
+    localStorage.removeItem(STORAGE_KEYS.UI_AUDIT_LOGS);
     this.logs = [];
   }
 }

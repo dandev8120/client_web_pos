@@ -220,6 +220,7 @@ export interface StoreInfo {
   website: string;
   taxCode: string;
   invoiceCode: string; // Mã hóa đơn (C25MAC)
+  vatPercentage: string;
   legalName: string; // Tên pháp lý
   logo: string;
   cashier: string;
@@ -259,6 +260,7 @@ export interface VatInfo {
   vatAmount: string;
   formNo: string;
   serialNo: string;
+  vatPercentage: string;
   eInvoiceNo: string;
   fullName: string;
   phone: string;

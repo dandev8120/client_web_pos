@@ -5,23 +5,40 @@ import viVN from 'antd/locale/vi_VN';
 import { AuthProvider, useAuth } from 'react-oidc-context';
 import { oidcConfig, extractOidcUser } from './services/oidcConfig';
 import { Error401, Error403, Error404, Error500, Error503, Maintenance, Upgrading } from './pages/error/ErrorPages';
+import DashboardLayout from './layouts/DashboardLayout';
 import { initAuditLogger } from './utils/auditLogger';
 import { TOKEN_STORAGE_KEY } from './services/authStorage';
 import { clearAppSession, createAppSession } from './services/appSession';
 import { siteService } from './services/siteService';
+import { GooeyToaster, goeyToasterConfig } from './services/toastMessage';
+import { NetworkStatusNotifier } from './components/NetworkStatusNotifier';
+import { STORAGE_KEYS } from './constants/storageKeys';
 
-const DashboardLayout = React.lazy(() => import('./layouts/DashboardLayout'));
-const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const Orders = React.lazy(() => import('./pages/Orders'));
-const Products = React.lazy(() => import('./pages/Products'));
-const Customers = React.lazy(() => import('./pages/Customers'));
-const Promotions = React.lazy(() => import('./pages/Promotions'));
-const Forms = React.lazy(() => import('./pages/Forms'));
-const Icons = React.lazy(() => import('./pages/Icons'));
-const RbacManagement = React.lazy(() => import('./pages/RbacManagement'));
-const AuditLogs = React.lazy(() => import('./pages/AuditLogs'));
+import { withSkeleton } from './utils/withSkeleton';
+import { DashboardSkeleton } from './components/skeletons/DashboardSkeleton';
+import {
+  AuditLogsSkeleton,
+  CustomersSkeleton,
+  FormsSkeleton,
+  IconsSkeleton,
+  OrdersSkeleton,
+  ProductsSkeleton,
+  PromotionsSkeleton,
+  RbacSkeleton,
+  VatConfigSkeleton,
+} from './components/skeletons/PageSkeletons';
+
+const Dashboard = withSkeleton(React.lazy(() => import('./pages/Dashboard')), DashboardSkeleton);
+const Orders = withSkeleton(React.lazy(() => import('./pages/Orders')), OrdersSkeleton);
+const Products = withSkeleton(React.lazy(() => import('./pages/Products')), ProductsSkeleton);
+const Customers = withSkeleton(React.lazy(() => import('./pages/Customers')), CustomersSkeleton);
+const Promotions = withSkeleton(React.lazy(() => import('./pages/Promotions')), PromotionsSkeleton);
+const Forms = withSkeleton(React.lazy(() => import('./pages/Forms')), FormsSkeleton);
+const Icons = withSkeleton(React.lazy(() => import('./pages/Icons')), IconsSkeleton);
+const RbacManagement = withSkeleton(React.lazy(() => import('./pages/RbacManagement')), RbacSkeleton);
+const AuditLogs = withSkeleton(React.lazy(() => import('./pages/AuditLogs')), AuditLogsSkeleton);
 const Login = React.lazy(() => import('./pages/Login'));
-const VatConfig = React.lazy(() => import('./pages/VatConfig'));
+const VatConfig = withSkeleton(React.lazy(() => import('./pages/VatConfig')), VatConfigSkeleton);
 
 const REDIRECT_LOCK_KEY = '@@WEB_POS_OIDC_REDIRECTING';
 const AUTH_RETURN_URL_KEY = '@@WEB_POS_AUTH_RETURN_URL';
@@ -139,8 +156,8 @@ function AppContent({ themeMode, setThemeMode, layout, setLayout }: any) {
   useEffect(() => {
     if (auth.user?.access_token) {
       localStorage.setItem(TOKEN_STORAGE_KEY, auth.user.access_token);
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('@@WEB_POS_PORTAL');
+      localStorage.removeItem(STORAGE_KEYS.LEGACY_ACCESS_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.PORTAL_SESSION);
       createAppSession(auth.user).catch((err) => {
         console.warn('Create app session error:', err);
       });
@@ -293,10 +310,10 @@ class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, { 
 
 export default function App() {
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>(() => {
-    return (localStorage.getItem('themeMode') as 'light' | 'dark' | 'system') || 'system';
+    return (localStorage.getItem(STORAGE_KEYS.THEME_MODE) as 'light' | 'dark' | 'system') || 'system';
   });
   const [layout, setLayout] = useState<'sidebar' | 'top'>(() => {
-    return (localStorage.getItem('layout') as 'sidebar' | 'top') || 'sidebar';
+    return (localStorage.getItem(STORAGE_KEYS.LAYOUT) as 'sidebar' | 'top') || 'sidebar';
   });
 
   const isDark =
@@ -304,7 +321,7 @@ export default function App() {
     (themeMode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   useEffect(() => {
-    localStorage.setItem('themeMode', themeMode);
+    localStorage.setItem(STORAGE_KEYS.THEME_MODE, themeMode);
     if (isDark) {
       document.body.classList.add('dark-theme');
     } else {
@@ -313,7 +330,7 @@ export default function App() {
   }, [themeMode, isDark]);
 
   useEffect(() => {
-    localStorage.setItem('layout', layout);
+    localStorage.setItem(STORAGE_KEYS.LAYOUT, layout);
   }, [layout]);
 
   const onSigninCallback = () => {
@@ -326,8 +343,8 @@ export default function App() {
   const onSignoutCallback = async () => {
     await clearAppSession();
     localStorage.removeItem(TOKEN_STORAGE_KEY);
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('@@WEB_POS_PORTAL');
+    localStorage.removeItem(STORAGE_KEYS.LEGACY_ACCESS_TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.PORTAL_SESSION);
     sessionStorage.removeItem(REDIRECT_LOCK_KEY);
     const returnPath = normalizeReturnPath(sessionStorage.getItem(AUTH_RETURN_URL_KEY));
     window.history.replaceState(
@@ -343,7 +360,8 @@ export default function App() {
       onSigninCallback={onSigninCallback}
       matchSignoutCallback={(settings) => {
         const postLogoutRedirectUri = settings.post_logout_redirect_uri;
-        return Boolean(postLogoutRedirectUri) && window.location.href.startsWith(postLogoutRedirectUri);
+        return typeof postLogoutRedirectUri === 'string'
+          && window.location.href.startsWith(postLogoutRedirectUri);
       }}
       onSignoutCallback={onSignoutCallback}
     >
@@ -366,6 +384,8 @@ export default function App() {
               setLayout={setLayout}
             />
           </AppErrorBoundary>
+          <NetworkStatusNotifier />
+          <GooeyToaster {...goeyToasterConfig} />
         </AntdApp>
       </ConfigProvider>
     </AuthProvider>

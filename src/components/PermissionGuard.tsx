@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { App } from 'antd';
 import { hasButtonPermission, isRbacBypassEnabled } from '../utils/rbacPresets';
 import { logAction } from '../utils/auditLogger';
+import { message } from '../services/toastMessage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 interface PermissionGuardProps {
   buttonCode: string;
@@ -20,8 +21,6 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   children,
   allowDisabledState = false,
 }) => {
-  const { message } = App.useApp();
-
   if (isRbacBypassEnabled()) {
     return <>{children}</>;
   }
@@ -29,7 +28,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   // Read active session directly from localStorage to prevent stale context or DevTools tampering
   const activeUser = useMemo(() => {
     try {
-      const saved = localStorage.getItem('@@WEB_POS_PORTAL');
+      const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -68,7 +67,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
     return React.cloneElement(children as React.ReactElement<any>, {
       onClick: (e: React.MouseEvent) => {
         // Double-check live permission state right before invoking handler
-        const currentSaved = localStorage.getItem('@@WEB_POS_PORTAL');
+        const currentSaved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
         const currentUser = currentSaved ? JSON.parse(currentSaved) : activeUser;
         const currentRoles = currentUser?.roles || [currentUser?.role || 'user'];
         const currentAllowed = hasButtonPermission(currentUser?.buttonPermissions, buttonCode, currentRoles);

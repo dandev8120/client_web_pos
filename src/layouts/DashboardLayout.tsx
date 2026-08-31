@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown, Space, Typography, theme, Badge, Input, Popover, Divider, AutoComplete, Modal } from 'antd';
 import {
   DesktopOutlined,
@@ -40,6 +40,7 @@ import { useTranslation } from 'react-i18next';
 import { Breadcrumb, Drawer, Radio, Tooltip, Tag } from 'antd';
 import TopLoadingBar from '../components/TopLoadingBar';
 import ErrorBoundary from '../components/ErrorBoundary';
+import DataSectionSkeleton from '../components/DataSectionSkeleton';
 import { canAccessUrl } from '../utils/rbacPresets';
 import { Error403 } from '../pages/error/ErrorPages';
 import appMetadata from '../../metadata.json';
@@ -898,7 +899,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <Content style={{ margin: isMobile ? '12px 12px 0' : '16px 20px 0', overflow: 'initial' }}>
           <div key={location.pathname} style={{ minHeight: 'calc(100vh - 160px)' }}>
             <ErrorBoundary>
-              {isRouteAllowed ? <Outlet /> : <Error403 />}
+              {isRouteAllowed ? (<React.Suspense fallback={<div style={{ padding: '24px 0' }}><DataSectionSkeleton /></div>}><Outlet /></React.Suspense>) : <Error403 />}
             </ErrorBoundary>
           </div>
         </Content>

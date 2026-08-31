@@ -16,13 +16,15 @@ import PageContainer from '../components/PageContainer';
 import { AuditLog, getAuditLogs } from '../utils/auditLogger';
 import { auditService } from '../services/auditService';
 import { hasButtonPermission } from '../utils/rbacPresets';
+import { message } from '../services/toastMessage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 const { Paragraph, Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const getLoggedUser = () => {
   try {
-    const saved = localStorage.getItem('@@WEB_POS_PORTAL');
+    const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
     return saved ? JSON.parse(saved) : null;
   } catch {
     return null;
@@ -50,7 +52,7 @@ const jsonBlock = (value: any) => (
 );
 
 const AuditLogs: React.FC = () => {
-  const { message, modal } = App.useApp();
+  const { modal } = App.useApp();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [searchText, setSearchText] = useState('');

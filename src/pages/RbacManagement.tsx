@@ -49,6 +49,8 @@ import {
 } from '@ant-design/icons';
 import { motion } from 'motion/react';
 import PageContainer from '../components/PageContainer';
+import { message } from '../services/toastMessage';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 import { 
   UI_PERMISSION_TREE, 
   PermissionTreeNode, 
@@ -69,7 +71,7 @@ import type { DataNode } from 'antd/es/tree';
 const { Title, Paragraph, Text } = Typography;
 
 export const RbacManagement: React.FC = () => {
-  const { message, modal } = App.useApp();
+  const { modal } = App.useApp();
   const [activeTab, setActiveTab] = useState('tree_permissions');
   
   // Tree State loaded from localStorage or default
@@ -87,7 +89,7 @@ export const RbacManagement: React.FC = () => {
   
   // Current logged in user from localStorage
   const loggedUser = useMemo(() => {
-    const saved = localStorage.getItem('@@WEB_POS_PORTAL');
+    const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
     return saved ? JSON.parse(saved) : null;
   }, []);
 
@@ -285,7 +287,7 @@ export const RbacManagement: React.FC = () => {
         allowedUrls: newAllowedUrls,
         buttonPermissions: newBtnPermissions
       };
-      localStorage.setItem('@@WEB_POS_PORTAL', JSON.stringify(updatedUser));
+      localStorage.setItem(STORAGE_KEYS.PORTAL_SESSION, JSON.stringify(updatedUser));
     }
 
     window.dispatchEvent(new Event('rbac-update'));
@@ -352,7 +354,7 @@ export const RbacManagement: React.FC = () => {
         allowedUrls: newAllowedUrls,
         buttonPermissions: newBtnPermissions
       };
-      localStorage.setItem('@@WEB_POS_PORTAL', JSON.stringify(updatedUser));
+      localStorage.setItem(STORAGE_KEYS.PORTAL_SESSION, JSON.stringify(updatedUser));
     }
 
     window.dispatchEvent(new Event('rbac-update'));
@@ -538,7 +540,7 @@ export const RbacManagement: React.FC = () => {
           allowedUrls: newAllowedUrls,
           buttonPermissions: newBtnPermissions
         };
-        localStorage.setItem('@@WEB_POS_PORTAL', JSON.stringify(updatedUser));
+        localStorage.setItem(STORAGE_KEYS.PORTAL_SESSION, JSON.stringify(updatedUser));
       }
 
       window.dispatchEvent(new Event('rbac-update'));
@@ -879,7 +881,7 @@ export const RbacManagement: React.FC = () => {
                               const effectiveButtons = userRoleObj ? userRoleObj.buttonPermissions : usr.buttonPermissions;
                               const effectiveUrls = userRoleObj ? userRoleObj.allowedUrls : usr.allowedUrls;
 
-                              localStorage.setItem('@@WEB_POS_PORTAL', JSON.stringify({
+                              localStorage.setItem(STORAGE_KEYS.PORTAL_SESSION, JSON.stringify({
                                 name: usr.name,
                                 email: usr.email,
                                 role: usr.roles[0],

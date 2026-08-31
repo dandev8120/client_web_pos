@@ -1,8 +1,9 @@
 import seedRbacJson from '../seed/seedRbac.json';
 import { PermissionNodeDto, RoleRequestDto, RoleResponseDto, RbacMapper } from '../dtos/RbacDto';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
-const TREE_STORAGE_KEY = '@@RBAC_TREE';
-const ROLES_STORAGE_KEY = '@@RBAC_ROLES';
+const TREE_STORAGE_KEY = STORAGE_KEYS.RBAC_TREE;
+const ROLES_STORAGE_KEY = STORAGE_KEYS.RBAC_ROLES;
 
 export class RbacService {
   /**

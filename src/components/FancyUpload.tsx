@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
+import { message } from '../services/toastMessage';
 
 const { Text, Title } = Typography;
 const { Dragger } = Upload;
@@ -39,7 +40,7 @@ const FancyUpload: React.FC<FancyUploadProps> = ({
   onChange,
   maxCount = 999 
 }) => {
-  const { modal, message } = App.useApp();
+  const { modal } = App.useApp();
   const [fileList, setFileList] = useState<FileItem[]>(value);
   const { t } = useTranslation();
 

@@ -1,5 +1,5 @@
 ﻿import React, { useMemo, useState } from 'react';
-import { App, Button, Input, Segmented, Slider, Space, Tag, Tooltip } from 'antd';
+import { Button, Input, Segmented, Slider, Space, Tag, Tooltip } from 'antd';
 import {
   Archive,
   BadgeCheck,
@@ -73,6 +73,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import PageContainer from '../components/PageContainer';
+import { message } from '../services/toastMessage';
 
 type Tone = 'blue' | 'emerald' | 'amber' | 'rose' | 'violet' | 'cyan' | 'slate' | 'indigo';
 type GroupKey = 'all' | 'retail' | 'fashion' | 'pos' | 'system' | 'animated';
@@ -462,7 +463,6 @@ const SamplePanel: React.FC<{ title: string; icon: LucideIcon; children: React.R
 );
 
 const IconsPage: React.FC = () => {
-  const { message } = App.useApp();
   const [group, setGroup] = useState<GroupKey>('all');
   const [searchText, setSearchText] = useState('');
   const [selectedIcon, setSelectedIcon] = useState(iconSpecs[0]);

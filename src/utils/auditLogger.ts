@@ -1,5 +1,6 @@
 import { AuditLogRequestDto, AuditLogResponseDto } from '../dtos/AuditLogDto';
 import { auditService } from '../services/auditService';
+import { STORAGE_KEYS, STORAGE_KEY_PREFIXES } from '../constants/storageKeys';
 
 export type AuditLog = AuditLogResponseDto;
 
@@ -99,9 +100,9 @@ const getBrowserInfo = () => {
 
 const getAuthUser = () => {
   try {
-    const session = localStorage.getItem('@@WEB_POS_PORTAL');
+    const session = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
     const parsedSession = session ? JSON.parse(session) : null;
-    const oidcKey = Object.keys(localStorage).find(key => key.startsWith('oidc.user:'));
+    const oidcKey = Object.keys(localStorage).find(key => key.startsWith(STORAGE_KEY_PREFIXES.OIDC_USER));
     const oidcUser = oidcKey ? JSON.parse(localStorage.getItem(oidcKey) || '{}') : null;
     const profile = oidcUser?.profile || parsedSession?.profile || parsedSession || {};
 

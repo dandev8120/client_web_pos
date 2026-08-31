@@ -1,6 +1,7 @@
 import { AuditLogRequestDto, AuditLogResponseDto, AuditLogMapper } from '../dtos/AuditLogDto';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
-const STORAGE_KEY = '@@WEB_POS_AUDIT_LOG';
+const STORAGE_KEY = STORAGE_KEYS.AUDIT_LOG;
 
 export class AuditService {
   public getLogs(): AuditLogResponseDto[] {
