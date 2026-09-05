@@ -42,8 +42,8 @@ export const Error403: React.FC = () => {
           <Button type="primary" key="home" onClick={() => navigate('/')} className="bg-blue-600">
             {t('back_home', 'Quay lại Trang chủ')}
           </Button>,
-          <Button key="rbac" onClick={() => navigate('/system/rbac')}>
-            Xem danh sách Quyền RBAC
+          <Button key="access-control" onClick={() => navigate('/system/access-control')}>
+            Xem danh sách quyền
           </Button>
         ]}
       />

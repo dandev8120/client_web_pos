@@ -15,7 +15,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import PageContainer from '../components/PageContainer';
 import { AuditLog, getAuditLogs } from '../utils/auditLogger';
 import { auditService } from '../services/auditService';
-import { hasButtonPermission } from '../utils/rbacPresets';
+import { hasButtonPermission } from '../utils/accessControlPresets';
 import { message } from '../services/toastMessage';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 
@@ -37,7 +37,7 @@ const getModuleLabel = (path: string) => {
   if (path.startsWith('/sales/customers')) return 'Khách hàng';
   if (path.startsWith('/sales/promotions')) return 'Khuyến mãi';
   if (path.startsWith('/system/icons')) return 'Icons';
-  if (path.startsWith('/system/rbac')) return 'Phân quyền';
+  if (path.startsWith('/system/access-control')) return 'Phân quyền';
   if (path.startsWith('/system/forms')) return 'Biểu mẫu';
   if (path === '/') return 'Dashboard';
   return path.split('/').filter(Boolean)[0] || 'Hệ thống';

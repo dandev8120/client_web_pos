@@ -1,0 +1,23 @@
+{
+  "sales.orders.btn_search": "SALES_ORDERS_SEARCH",
+  "sales.orders.btn_reset": "SALES_ORDERS_SEARCH",
+  "sales.orders.btn_create": "SALES_ORDERS_CREATE",
+  "sales.orders.btn_cancel": "SALES_ORDERS_CANCEL",
+  "sales.orders.btn_export": "SALES_ORDERS_EXPORT",
+  "sales.orders.btn_print": "SALES_ORDERS_PRINT_INVOICE",
+  "sales.products.btn_create": "SALES_PRODUCTS_CREATE",
+  "sales.products.btn_edit": "SALES_PRODUCTS_EDIT",
+  "sales.products.btn_delete": "SALES_PRODUCTS_DELETE",
+  "sales.customers.btn_create": "SALES_CUSTOMERS_CREATE",
+  "sales.customers.btn_export": "SALES_CUSTOMERS_EXPORT",
+  "sales.promotions.btn_create": "SALES_PROMOTIONS_CREATE",
+  "sales.promotions.btn_edit": "SALES_PROMOTIONS_CREATE",
+  "sales.promotions.btn_delete": "SALES_PROMOTIONS_APPROVE",
+  "sales.promotions.btn_export": "SALES_PROMOTIONS_VIEW",
+  "system.accessControl.btn_save": "SYSTEM_ACCESS_CONTROL_SAVE",
+  "system.accessControl.btn_create_role": "SYSTEM_ACCESS_CONTROL_CREATE_ROLE",
+  "system.vat.btn_save": "SYSTEM_VAT_CONFIG_SAVE",
+  "system.audit.btn_export": "SYSTEM_AUDIT_LOGS_EXPORT",
+  "system.audit.btn_delete": "SYSTEM_AUDIT_LOGS_DELETE",
+  "system.forms.btn_export": "SYSTEM_FORMS_EXPORT"
+}

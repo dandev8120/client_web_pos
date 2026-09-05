@@ -1,0 +1,846 @@
+[
+  {
+    "id": 1,
+    "functionCode": "DASHBOARD",
+    "functionNameKey": "accessControl.dashboard",
+    "titleKey": "dashboard",
+    "type": "MENU",
+    "level": 1,
+    "parentId": null,
+    "pathId": "/1/",
+    "pathCode": "/DASHBOARD/",
+    "icon": "dashboard",
+    "url": "/",
+    "sortOrder": 1,
+    "status": 1,
+    "children": [
+      {
+        "id": 2,
+        "functionCode": "DASHBOARD_VIEW",
+        "functionNameKey": "accessControl.dashboard.view",
+        "type": "ACTION",
+        "level": 2,
+        "parentId": 1,
+        "pathId": "/1/2/",
+        "pathCode": "/DASHBOARD/DASHBOARD_VIEW/",
+        "icon": "eye",
+        "url": "",
+        "sortOrder": 1,
+        "status": 1,
+        "titleName": {
+          "en": "View dashboard",
+          "vi": "Xem tổng quan"
+        }
+      },
+      {
+        "id": 3,
+        "functionCode": "DASHBOARD_FILTER",
+        "functionNameKey": "accessControl.dashboard.filter",
+        "type": "ACTION",
+        "level": 2,
+        "parentId": 1,
+        "pathId": "/1/3/",
+        "pathCode": "/DASHBOARD/DASHBOARD_FILTER/",
+        "icon": "filter",
+        "url": "",
+        "sortOrder": 2,
+        "status": 1,
+        "titleName": {
+          "en": "Filter dashboard",
+          "vi": "Lọc tổng quan"
+        }
+      },
+      {
+        "id": 4,
+        "functionCode": "DASHBOARD_EXPORT",
+        "functionNameKey": "accessControl.dashboard.export",
+        "type": "ACTION",
+        "level": 2,
+        "parentId": 1,
+        "pathId": "/1/4/",
+        "pathCode": "/DASHBOARD/DASHBOARD_EXPORT/",
+        "icon": "export",
+        "url": "",
+        "sortOrder": 3,
+        "status": 1,
+        "titleName": {
+          "en": "Export dashboard",
+          "vi": "Xuất tổng quan"
+        }
+      }
+    ],
+    "titleName": {
+      "en": "Dashboard",
+      "vi": "Tổng quan"
+    }
+  },
+  {
+    "id": 10,
+    "functionCode": "SALES",
+    "functionNameKey": "accessControl.sales",
+    "titleKey": "sales",
+    "type": "MODULE",
+    "level": 1,
+    "parentId": null,
+    "pathId": "/10/",
+    "pathCode": "/SALES/",
+    "icon": "rise",
+    "url": "",
+    "sortOrder": 2,
+    "status": 1,
+    "children": [
+      {
+        "id": 11,
+        "functionCode": "SALES_ORDERS",
+        "functionNameKey": "accessControl.sales.orders",
+        "titleKey": "orders",
+        "type": "MENU",
+        "level": 2,
+        "parentId": 10,
+        "pathId": "/10/11/",
+        "pathCode": "/SALES/SALES_ORDERS/",
+        "icon": "shopping-cart",
+        "url": "/sales/orders",
+        "sortOrder": 1,
+        "status": 1,
+        "children": [
+          {
+            "id": 12,
+            "functionCode": "SALES_ORDERS_VIEW",
+            "functionNameKey": "accessControl.sales.orders.view",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 11,
+            "pathId": "/10/11/12/",
+            "pathCode": "/SALES/SALES_ORDERS/SALES_ORDERS_VIEW/",
+            "icon": "eye",
+            "url": "",
+            "sortOrder": 1,
+            "status": 1,
+            "titleName": {
+              "en": "View orders",
+              "vi": "Xem đơn hàng"
+            }
+          },
+          {
+            "id": 13,
+            "functionCode": "SALES_ORDERS_SEARCH",
+            "functionNameKey": "accessControl.sales.orders.search",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 11,
+            "pathId": "/10/11/13/",
+            "pathCode": "/SALES/SALES_ORDERS/SALES_ORDERS_SEARCH/",
+            "icon": "search",
+            "url": "",
+            "sortOrder": 2,
+            "status": 1,
+            "titleName": {
+              "en": "Search orders",
+              "vi": "Tìm đơn hàng"
+            }
+          },
+          {
+            "id": 14,
+            "functionCode": "SALES_ORDERS_CREATE",
+            "functionNameKey": "accessControl.sales.orders.create",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 11,
+            "pathId": "/10/11/14/",
+            "pathCode": "/SALES/SALES_ORDERS/SALES_ORDERS_CREATE/",
+            "icon": "plus",
+            "url": "",
+            "sortOrder": 3,
+            "status": 1,
+            "titleName": {
+              "en": "Create order",
+              "vi": "Tạo đơn hàng"
+            }
+          },
+          {
+            "id": 15,
+            "functionCode": "SALES_ORDERS_CANCEL",
+            "functionNameKey": "accessControl.sales.orders.cancel",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 11,
+            "pathId": "/10/11/15/",
+            "pathCode": "/SALES/SALES_ORDERS/SALES_ORDERS_CANCEL/",
+            "icon": "close",
+            "url": "",
+            "sortOrder": 4,
+            "status": 1,
+            "titleName": {
+              "en": "Cancel order",
+              "vi": "Hủy đơn hàng"
+            }
+          },
+          {
+            "id": 16,
+            "functionCode": "SALES_ORDERS_EXPORT",
+            "functionNameKey": "accessControl.sales.orders.export",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 11,
+            "pathId": "/10/11/16/",
+            "pathCode": "/SALES/SALES_ORDERS/SALES_ORDERS_EXPORT/",
+            "icon": "export",
+            "url": "",
+            "sortOrder": 5,
+            "status": 1,
+            "titleName": {
+              "en": "Export orders",
+              "vi": "Xuất đơn hàng"
+            }
+          },
+          {
+            "id": 17,
+            "functionCode": "SALES_ORDERS_PRINT_INVOICE",
+            "functionNameKey": "accessControl.sales.orders.printInvoice",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 11,
+            "pathId": "/10/11/17/",
+            "pathCode": "/SALES/SALES_ORDERS/SALES_ORDERS_PRINT_INVOICE/",
+            "icon": "printer",
+            "url": "",
+            "sortOrder": 6,
+            "status": 1,
+            "titleName": {
+              "en": "Print invoice",
+              "vi": "In hóa đơn"
+            }
+          }
+        ],
+        "titleName": {
+          "en": "Orders",
+          "vi": "Đơn hàng nè"
+        }
+      },
+      {
+        "id": 20,
+        "functionCode": "SALES_PRODUCTS",
+        "functionNameKey": "accessControl.sales.products",
+        "titleKey": "products",
+        "type": "MENU",
+        "level": 2,
+        "parentId": 10,
+        "pathId": "/10/20/",
+        "pathCode": "/SALES/SALES_PRODUCTS/",
+        "icon": "appstore",
+        "url": "/sales/products",
+        "sortOrder": 2,
+        "status": 1,
+        "children": [
+          {
+            "id": 21,
+            "functionCode": "SALES_PRODUCTS_VIEW",
+            "functionNameKey": "accessControl.sales.products.view",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 20,
+            "pathId": "/10/20/21/",
+            "pathCode": "/SALES/SALES_PRODUCTS/SALES_PRODUCTS_VIEW/",
+            "icon": "eye",
+            "url": "",
+            "sortOrder": 1,
+            "status": 1,
+            "titleName": {
+              "en": "View products",
+              "vi": "Xem sản phẩm"
+            }
+          },
+          {
+            "id": 22,
+            "functionCode": "SALES_PRODUCTS_CREATE",
+            "functionNameKey": "accessControl.sales.products.create",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 20,
+            "pathId": "/10/20/22/",
+            "pathCode": "/SALES/SALES_PRODUCTS/SALES_PRODUCTS_CREATE/",
+            "icon": "plus",
+            "url": "",
+            "sortOrder": 2,
+            "status": 1,
+            "titleName": {
+              "en": "Create product",
+              "vi": "Tạo sản phẩm"
+            }
+          },
+          {
+            "id": 23,
+            "functionCode": "SALES_PRODUCTS_EDIT",
+            "functionNameKey": "accessControl.sales.products.edit",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 20,
+            "pathId": "/10/20/23/",
+            "pathCode": "/SALES/SALES_PRODUCTS/SALES_PRODUCTS_EDIT/",
+            "icon": "edit",
+            "url": "",
+            "sortOrder": 3,
+            "status": 1,
+            "titleName": {
+              "en": "Edit product",
+              "vi": "Sửa sản phẩm"
+            }
+          },
+          {
+            "id": 24,
+            "functionCode": "SALES_PRODUCTS_DELETE",
+            "functionNameKey": "accessControl.sales.products.delete",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 20,
+            "pathId": "/10/20/24/",
+            "pathCode": "/SALES/SALES_PRODUCTS/SALES_PRODUCTS_DELETE/",
+            "icon": "delete",
+            "url": "",
+            "sortOrder": 4,
+            "status": 1,
+            "titleName": {
+              "en": "Delete product",
+              "vi": "Xóa sản phẩm"
+            }
+          },
+          {
+            "id": 25,
+            "functionCode": "SALES_PRODUCTS_SYNC_SAP",
+            "functionNameKey": "accessControl.sales.products.syncSap",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 20,
+            "pathId": "/10/20/25/",
+            "pathCode": "/SALES/SALES_PRODUCTS/SALES_PRODUCTS_SYNC_SAP/",
+            "icon": "sync",
+            "url": "",
+            "sortOrder": 5,
+            "status": 1,
+            "titleName": {
+              "en": "Sync SAP",
+              "vi": "Đồng bộ SAP"
+            }
+          },
+          {
+            "id": 26,
+            "functionCode": "SALES_PRODUCTS_VIEW_COST",
+            "functionNameKey": "accessControl.sales.products.viewCost",
+            "type": "FIELD",
+            "level": 3,
+            "parentId": 20,
+            "pathId": "/10/20/26/",
+            "pathCode": "/SALES/SALES_PRODUCTS/SALES_PRODUCTS_VIEW_COST/",
+            "icon": "dollar",
+            "url": "",
+            "sortOrder": 6,
+            "status": 1,
+            "titleName": {
+              "en": "View cost",
+              "vi": "Xem giá vốn"
+            }
+          }
+        ],
+        "titleName": {
+          "en": "Products",
+          "vi": "Sản phẩm"
+        }
+      },
+      {
+        "id": 30,
+        "functionCode": "SALES_CUSTOMERS",
+        "functionNameKey": "accessControl.sales.customers",
+        "titleKey": "customers",
+        "type": "MENU",
+        "level": 2,
+        "parentId": 10,
+        "pathId": "/10/30/",
+        "pathCode": "/SALES/SALES_CUSTOMERS/",
+        "icon": "team",
+        "url": "/sales/customers",
+        "sortOrder": 3,
+        "status": 1,
+        "children": [
+          {
+            "id": 31,
+            "functionCode": "SALES_CUSTOMERS_VIEW",
+            "functionNameKey": "accessControl.sales.customers.view",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 30,
+            "pathId": "/10/30/31/",
+            "pathCode": "/SALES/SALES_CUSTOMERS/SALES_CUSTOMERS_VIEW/",
+            "icon": "eye",
+            "url": "",
+            "sortOrder": 1,
+            "status": 1,
+            "titleName": {
+              "en": "View customers",
+              "vi": "Xem khách hàng"
+            }
+          },
+          {
+            "id": 32,
+            "functionCode": "SALES_CUSTOMERS_CREATE",
+            "functionNameKey": "accessControl.sales.customers.create",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 30,
+            "pathId": "/10/30/32/",
+            "pathCode": "/SALES/SALES_CUSTOMERS/SALES_CUSTOMERS_CREATE/",
+            "icon": "plus",
+            "url": "",
+            "sortOrder": 2,
+            "status": 1,
+            "titleName": {
+              "en": "Create customer",
+              "vi": "Tạo khách hàng"
+            }
+          },
+          {
+            "id": 33,
+            "functionCode": "SALES_CUSTOMERS_EDIT",
+            "functionNameKey": "accessControl.sales.customers.edit",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 30,
+            "pathId": "/10/30/33/",
+            "pathCode": "/SALES/SALES_CUSTOMERS/SALES_CUSTOMERS_EDIT/",
+            "icon": "edit",
+            "url": "",
+            "sortOrder": 3,
+            "status": 1,
+            "titleName": {
+              "en": "Edit customer",
+              "vi": "Sửa khách hàng"
+            }
+          },
+          {
+            "id": 34,
+            "functionCode": "SALES_CUSTOMERS_EXPORT",
+            "functionNameKey": "accessControl.sales.customers.export",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 30,
+            "pathId": "/10/30/34/",
+            "pathCode": "/SALES/SALES_CUSTOMERS/SALES_CUSTOMERS_EXPORT/",
+            "icon": "export",
+            "url": "",
+            "sortOrder": 4,
+            "status": 1,
+            "titleName": {
+              "en": "Export customers",
+              "vi": "Xuất khách hàng"
+            }
+          }
+        ],
+        "titleName": {
+          "en": "Customers",
+          "vi": "Khách hàng"
+        }
+      },
+      {
+        "id": 40,
+        "functionCode": "SALES_PROMOTIONS",
+        "functionNameKey": "accessControl.sales.promotions",
+        "titleKey": "promotions",
+        "type": "MENU",
+        "level": 2,
+        "parentId": 10,
+        "pathId": "/10/40/",
+        "pathCode": "/SALES/SALES_PROMOTIONS/",
+        "icon": "gift",
+        "url": "/sales/promotions",
+        "sortOrder": 4,
+        "status": 1,
+        "children": [
+          {
+            "id": 41,
+            "functionCode": "SALES_PROMOTIONS_VIEW",
+            "functionNameKey": "accessControl.sales.promotions.view",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 40,
+            "pathId": "/10/40/41/",
+            "pathCode": "/SALES/SALES_PROMOTIONS/SALES_PROMOTIONS_VIEW/",
+            "icon": "eye",
+            "url": "",
+            "sortOrder": 1,
+            "status": 1,
+            "titleName": {
+              "en": "View promotions",
+              "vi": "Xem khuyến mãi"
+            }
+          },
+          {
+            "id": 42,
+            "functionCode": "SALES_PROMOTIONS_CREATE",
+            "functionNameKey": "accessControl.sales.promotions.create",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 40,
+            "pathId": "/10/40/42/",
+            "pathCode": "/SALES/SALES_PROMOTIONS/SALES_PROMOTIONS_CREATE/",
+            "icon": "plus",
+            "url": "",
+            "sortOrder": 2,
+            "status": 1,
+            "titleName": {
+              "en": "Create promotion",
+              "vi": "Tạo khuyến mãi"
+            }
+          },
+          {
+            "id": 43,
+            "functionCode": "SALES_PROMOTIONS_APPROVE",
+            "functionNameKey": "accessControl.sales.promotions.approve",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 40,
+            "pathId": "/10/40/43/",
+            "pathCode": "/SALES/SALES_PROMOTIONS/SALES_PROMOTIONS_APPROVE/",
+            "icon": "check",
+            "url": "",
+            "sortOrder": 3,
+            "status": 1,
+            "titleName": {
+              "en": "Approve promotion",
+              "vi": "Duyệt khuyến mãi"
+            }
+          }
+        ],
+        "titleName": {
+          "en": "Promotions",
+          "vi": "Khuyến mãi"
+        }
+      }
+    ],
+    "titleName": {
+      "en": "Sales",
+      "vi": "Bán hàng"
+    }
+  },
+  {
+    "id": 100,
+    "functionCode": "SYSTEM",
+    "functionNameKey": "accessControl.system",
+    "titleKey": "system_settings",
+    "type": "MODULE",
+    "level": 1,
+    "parentId": null,
+    "pathId": "/100/",
+    "pathCode": "/SYSTEM/",
+    "icon": "desktop",
+    "url": "",
+    "sortOrder": 3,
+    "status": 1,
+    "children": [
+      {
+        "id": 101,
+        "functionCode": "SYSTEM_ACCESS_CONTROL",
+        "functionNameKey": "accessControl.system.accessControl",
+        "type": "MENU",
+        "level": 2,
+        "parentId": 100,
+        "pathId": "/100/101/",
+        "pathCode": "/SYSTEM/SYSTEM_ACCESS_CONTROL/",
+        "icon": "safety",
+        "url": "/system/access-control",
+        "sortOrder": 1,
+        "status": 1,
+        "children": [
+          {
+            "id": 102,
+            "functionCode": "SYSTEM_ACCESS_CONTROL_VIEW",
+            "functionNameKey": "accessControl.system.accessControl.view",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 101,
+            "pathId": "/100/101/102/",
+            "pathCode": "/SYSTEM/SYSTEM_ACCESS_CONTROL/SYSTEM_ACCESS_CONTROL_VIEW/",
+            "icon": "eye",
+            "url": "",
+            "sortOrder": 1,
+            "status": 1,
+            "titleName": {
+              "en": "View access control",
+              "vi": "Xem phân quyền"
+            }
+          },
+          {
+            "id": 103,
+            "functionCode": "SYSTEM_ACCESS_CONTROL_CREATE_ROLE",
+            "functionNameKey": "accessControl.system.accessControl.createRole",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 101,
+            "pathId": "/100/101/103/",
+            "pathCode": "/SYSTEM/SYSTEM_ACCESS_CONTROL/SYSTEM_ACCESS_CONTROL_CREATE_ROLE/",
+            "icon": "plus",
+            "url": "",
+            "sortOrder": 2,
+            "status": 1,
+            "titleName": {
+              "en": "Create role",
+              "vi": "Tạo vai trò"
+            }
+          },
+          {
+            "id": 104,
+            "functionCode": "SYSTEM_ACCESS_CONTROL_SAVE",
+            "functionNameKey": "accessControl.system.accessControl.save",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 101,
+            "pathId": "/100/101/104/",
+            "pathCode": "/SYSTEM/SYSTEM_ACCESS_CONTROL/SYSTEM_ACCESS_CONTROL_SAVE/",
+            "icon": "save",
+            "url": "",
+            "sortOrder": 3,
+            "status": 1,
+            "titleName": {
+              "en": "Save permissions",
+              "vi": "Lưu phân quyền"
+            }
+          }
+        ],
+        "titleName": {
+          "en": "Access control",
+          "vi": "Phân quyền"
+        }
+      },
+      {
+        "id": 110,
+        "functionCode": "SYSTEM_VAT_CONFIG",
+        "functionNameKey": "accessControl.system.vatConfig",
+        "type": "MENU",
+        "level": 2,
+        "parentId": 100,
+        "pathId": "/100/110/",
+        "pathCode": "/SYSTEM/SYSTEM_VAT_CONFIG/",
+        "icon": "setting",
+        "url": "/system/vat-config",
+        "sortOrder": 2,
+        "status": 1,
+        "children": [
+          {
+            "id": 111,
+            "functionCode": "SYSTEM_VAT_CONFIG_VIEW",
+            "functionNameKey": "accessControl.system.vatConfig.view",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 110,
+            "pathId": "/100/110/111/",
+            "pathCode": "/SYSTEM/SYSTEM_VAT_CONFIG/SYSTEM_VAT_CONFIG_VIEW/",
+            "icon": "eye",
+            "url": "",
+            "sortOrder": 1,
+            "status": 1,
+            "titleName": {
+              "en": "View VAT configuration",
+              "vi": "Xem cấu hình VAT"
+            }
+          },
+          {
+            "id": 112,
+            "functionCode": "SYSTEM_VAT_CONFIG_SAVE",
+            "functionNameKey": "accessControl.system.vatConfig.save",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 110,
+            "pathId": "/100/110/112/",
+            "pathCode": "/SYSTEM/SYSTEM_VAT_CONFIG/SYSTEM_VAT_CONFIG_SAVE/",
+            "icon": "save",
+            "url": "",
+            "sortOrder": 2,
+            "status": 1,
+            "titleName": {
+              "en": "Save VAT configuration",
+              "vi": "Lưu cấu hình VAT"
+            }
+          }
+        ],
+        "titleName": {
+          "en": "VAT configuration",
+          "vi": "Cấu hình VAT"
+        }
+      },
+      {
+        "id": 120,
+        "functionCode": "SYSTEM_AUDIT_LOGS",
+        "functionNameKey": "accessControl.system.auditLogs",
+        "titleKey": "audit_logs",
+        "type": "MENU",
+        "level": 2,
+        "parentId": 100,
+        "pathId": "/100/120/",
+        "pathCode": "/SYSTEM/SYSTEM_AUDIT_LOGS/",
+        "icon": "history",
+        "url": "/system/audit-logs",
+        "sortOrder": 3,
+        "status": 1,
+        "children": [
+          {
+            "id": 121,
+            "functionCode": "SYSTEM_AUDIT_LOGS_VIEW",
+            "functionNameKey": "accessControl.system.auditLogs.view",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 120,
+            "pathId": "/100/120/121/",
+            "pathCode": "/SYSTEM/SYSTEM_AUDIT_LOGS/SYSTEM_AUDIT_LOGS_VIEW/",
+            "icon": "eye",
+            "url": "",
+            "sortOrder": 1,
+            "status": 1,
+            "titleName": {
+              "en": "View audit logs",
+              "vi": "Xem nhật ký"
+            }
+          },
+          {
+            "id": 122,
+            "functionCode": "SYSTEM_AUDIT_LOGS_EXPORT",
+            "functionNameKey": "accessControl.system.auditLogs.export",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 120,
+            "pathId": "/100/120/122/",
+            "pathCode": "/SYSTEM/SYSTEM_AUDIT_LOGS/SYSTEM_AUDIT_LOGS_EXPORT/",
+            "icon": "export",
+            "url": "",
+            "sortOrder": 2,
+            "status": 1,
+            "titleName": {
+              "en": "Export audit logs",
+              "vi": "Xuất nhật ký"
+            }
+          },
+          {
+            "id": 123,
+            "functionCode": "SYSTEM_AUDIT_LOGS_DELETE",
+            "functionNameKey": "accessControl.system.auditLogs.delete",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 120,
+            "pathId": "/100/120/123/",
+            "pathCode": "/SYSTEM/SYSTEM_AUDIT_LOGS/SYSTEM_AUDIT_LOGS_DELETE/",
+            "icon": "delete",
+            "url": "",
+            "sortOrder": 3,
+            "status": 1,
+            "titleName": {
+              "en": "Delete audit logs",
+              "vi": "Xóa nhật ký"
+            }
+          }
+        ],
+        "titleName": {
+          "en": "Audit logs",
+          "vi": "Nhật ký hệ thống"
+        }
+      },
+      {
+        "id": 130,
+        "functionCode": "SYSTEM_FORMS",
+        "functionNameKey": "accessControl.system.forms",
+        "titleKey": "forms",
+        "type": "MENU",
+        "level": 2,
+        "parentId": 100,
+        "pathId": "/100/130/",
+        "pathCode": "/SYSTEM/SYSTEM_FORMS/",
+        "icon": "layout",
+        "url": "/system/forms",
+        "sortOrder": 4,
+        "status": 1,
+        "children": [
+          {
+            "id": 131,
+            "functionCode": "SYSTEM_FORMS_VIEW",
+            "functionNameKey": "accessControl.system.forms.view",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 130,
+            "pathId": "/100/130/131/",
+            "pathCode": "/SYSTEM/SYSTEM_FORMS/SYSTEM_FORMS_VIEW/",
+            "icon": "eye",
+            "url": "",
+            "sortOrder": 1,
+            "status": 1,
+            "titleName": {
+              "en": "View forms",
+              "vi": "Xem biểu mẫu"
+            }
+          },
+          {
+            "id": 132,
+            "functionCode": "SYSTEM_FORMS_EXPORT",
+            "functionNameKey": "accessControl.system.forms.export",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 130,
+            "pathId": "/100/130/132/",
+            "pathCode": "/SYSTEM/SYSTEM_FORMS/SYSTEM_FORMS_EXPORT/",
+            "icon": "export",
+            "url": "",
+            "sortOrder": 2,
+            "status": 1,
+            "titleName": {
+              "en": "Export forms",
+              "vi": "Xuất biểu mẫu"
+            }
+          }
+        ],
+        "titleName": {
+          "en": "Forms",
+          "vi": "Biểu mẫu"
+        }
+      },
+      {
+        "id": 140,
+        "functionCode": "SYSTEM_ICONS",
+        "functionNameKey": "accessControl.system.icons",
+        "titleKey": "icons",
+        "type": "MENU",
+        "level": 2,
+        "parentId": 100,
+        "pathId": "/100/140/",
+        "pathCode": "/SYSTEM/SYSTEM_ICONS/",
+        "icon": "safety",
+        "url": "/system/icons",
+        "sortOrder": 5,
+        "status": 1,
+        "children": [
+          {
+            "id": 141,
+            "functionCode": "SYSTEM_ICONS_VIEW",
+            "functionNameKey": "accessControl.system.icons.view",
+            "type": "ACTION",
+            "level": 3,
+            "parentId": 140,
+            "pathId": "/100/140/141/",
+            "pathCode": "/SYSTEM/SYSTEM_ICONS/SYSTEM_ICONS_VIEW/",
+            "icon": "eye",
+            "url": "",
+            "sortOrder": 1,
+            "status": 1,
+            "titleName": {
+              "en": "View icons",
+              "vi": "Xem biểu tượng"
+            }
+          }
+        ],
+        "titleName": {
+          "en": "Icons",
+          "vi": "Biểu tượng"
+        }
+      }
+    ],
+    "titleName": {
+      "en": "System",
+      "vi": "Hệ thống"
+    }
+  }
+]

@@ -58,7 +58,7 @@ import dayjs from 'dayjs';
 import PageContainer from '../components/PageContainer';
 import FancyUpload from '../components/FancyUpload';
 import { SmartTable } from '../components/SmartTable';
-import { hasButtonPermission } from '../utils/rbacPresets';
+import { hasButtonPermission } from '../utils/accessControlPresets';
 import { ProductStatsOverview, ProductStats } from '../components/products/ProductStatsOverview';
 import { productService } from '../services/productService';
 import { ProductResponseDto, ProductRequestDto, ProductMapper } from '../dtos/ProductDto';
@@ -150,7 +150,7 @@ export const Products: React.FC = () => {
   const [isJsonbModalOpen, setIsJsonbModalOpen] = useState(false);
   const [jsonbInputText, setJsonbInputText] = useState('');
 
-  // Active User session from localStorage for RBAC checks
+  // Active User session from localStorage for phân quyền checks
   const loggedUser = useMemo(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);

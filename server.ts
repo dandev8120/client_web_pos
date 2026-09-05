@@ -221,6 +221,12 @@ function verifyCsrfToken(req: express.Request, res: express.Response, next: expr
   });
 }
 
+function listenOnConfiguredPort(server: http.Server | https.Server, port: number, protocol: string) {
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on ${protocol}://localhost:${port} (${appEnv})`);
+  });
+}
+
 function hasRequestBody(method: string) {
   return !["GET", "HEAD"].includes(method.toUpperCase());
 }
@@ -720,9 +726,7 @@ export function createHotContext() {
     });
   }
 
-  server.listen(port, "0.0.0.0", () => {
-    console.log(`Server running on ${protocol}://localhost:${port} (${appEnv})`);
-  });
+  listenOnConfiguredPort(server, port, protocol);
 }
 
 startServer();

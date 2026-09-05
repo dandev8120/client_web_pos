@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { hasButtonPermission, isRbacBypassEnabled } from '../utils/rbacPresets';
+import { hasButtonPermission, isAccessControlBypassEnabled } from '../utils/accessControlPresets';
 import { logAction } from '../utils/auditLogger';
 import { message } from '../services/toastMessage';
 import { STORAGE_KEYS } from '../constants/storageKeys';
@@ -21,7 +21,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   children,
   allowDisabledState = false,
 }) => {
-  if (isRbacBypassEnabled()) {
+  if (isAccessControlBypassEnabled()) {
     return <>{children}</>;
   }
 

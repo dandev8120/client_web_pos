@@ -1,0 +1,51 @@
+{
+  "sales.orders.btn_cancel": [
+    "btn_cancel_order"
+  ],
+  "btn_cancel_order": [
+    "sales.orders.btn_cancel"
+  ],
+  "sales.orders.btn_print": [
+    "btn_print_invoice"
+  ],
+  "btn_print_invoice": [
+    "sales.orders.btn_print"
+  ],
+  "sales.orders.btn_export": [
+    "btn_export_excel"
+  ],
+  "btn_export_excel": [
+    "sales.orders.btn_export",
+    "system.audit.btn_export"
+  ],
+  "sales.orders.btn_create": [
+    "btn_create_order"
+  ],
+  "btn_create_order": [
+    "sales.orders.btn_create"
+  ],
+  "sales.products.btn_edit": [
+    "btn_edit_product"
+  ],
+  "btn_edit_product": [
+    "sales.products.btn_edit"
+  ],
+  "system.audit.btn_delete": [
+    "btn_delete_audit"
+  ],
+  "btn_delete_audit": [
+    "system.audit.btn_delete"
+  ],
+  "system.vat.btn_save": [
+    "btn_vat_config"
+  ],
+  "btn_vat_config": [
+    "system.vat.btn_save"
+  ],
+  "system.accessControl.btn_save": [
+    "btn_manage_access_control"
+  ],
+  "btn_manage_access_control": [
+    "system.accessControl.btn_save"
+  ]
+}

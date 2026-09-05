@@ -1,11 +1,40 @@
+import { accessControlService } from '../services/accessControlService';
+import { FunctionNodeDto } from '../dtos/AuthorizationDto';
+
 export interface PermissionTreeNode {
   key: string;
   title: string;
+  titleName?: LocalizedTitleName;
   type: 'module' | 'menu' | 'ui_section' | 'action';
   code: string;
   path?: string;
   description?: string;
   children?: PermissionTreeNode[];
+}
+
+export interface LocalizedTitleName {
+  vi?: string;
+  en?: string;
+  [languageCode: string]: string | undefined;
+}
+
+export interface FunctionTreeNode {
+  id: number;
+  functionCode: string;
+  functionNameKey: string;
+  titleKey?: string;
+  titleName?: LocalizedTitleName;
+  type: 'MODULE' | 'MENU' | 'PAGE' | 'ROUTE' | 'SECTION' | 'ACTION' | 'FIELD' | 'COLUMN' | 'CARD' | 'WIDGET';
+  level: number;
+  parentId: number | null;
+  pathId: string;
+  pathCode: string;
+  icon?: string;
+  url?: string;
+  sortOrder: number;
+  status: 0 | 1;
+  requiresPermission?: boolean;
+  children?: FunctionTreeNode[];
 }
 
 export interface UserProfile {
@@ -23,207 +52,14 @@ export interface UserProfile {
   isExpired?: boolean;
 }
 
-// Temporary test mode: RBAC is currently mocked, so keep every route/action open
-// while validating real app modules. Set this to false when real permissions are wired.
-export const RBAC_BYPASS_FOR_TESTING = true;
+// Temporary emergency flag only. Keep false for Function Tree  testing with seed/API.
+export const _BYPASS_FOR_TESTING = false;
 
-export function isRbacBypassEnabled(): boolean {
-  return RBAC_BYPASS_FOR_TESTING || String(import.meta.env.VITE_RBAC_BYPASS || '').toLowerCase() === 'flase';
+export function isAccessControlBypassEnabled(): boolean {
+  return _BYPASS_FOR_TESTING || String(import.meta.env.VITE_ACCESS_CONTROL_BYPASS || '').toLowerCase() === 'true';
 }
 
 export const REAL_IDENTITY_SERVER_JWT = `eyJhbGciOiJSUzI1NiIsImtpZCI6IkFCMzREQTJFRTcxMTIxRjhDRkFEQ0RFMDg3MjI0MEQzIiwidHlwIjoiYXQrand0In0.eyJuYmYiOjE3ODUyNTE3MjEsImV4cCI6MTc4NTI1NTMyMSwiaXNzIjoiaHR0cHM6Ly9pZGVudGl0eXNlcnZlci5iaXRpc2dyb3VwLnZuIiwiYXVkIjoic2tvcnViYV9pZGVudGl0eV9hZG1pbl9hcGkiLCJjbGllbnRfaWQiOiJza29ydWJhX2lkZW50aXR5X2FkbWluX2FwaV9zd2FnZ2VydWkiLCJzdWIiOiJkODA0NDlhYy0wNmYzLTQ4OGEtOTFiYy1jNDY4NGU0MTRmOTciLCJhdXRoX3RpbWUiOjE3ODUyNTE3MjEsImlkcCI6ImxvY2FsIiwibmFtZSI6IkTGsMahbmcgQ2jDrSBE4bqrbiIsInJvbGUiOlsiU2tvcnViYUlkZW50aXR5QWRtaW5BZG1pbmlzdHJhdG9yIiwiSWRlbnRpdHlCaXRpc0FkbWluQWRtaW5pc3RyYXRvciJdLCJlbWFpbCI6ImNoaWRhbjI0MTBAZ21haWwuY29tIiwianRpIjoiQjEwOTJEQUZDODQ1MjkyMkE2Q0YyNjE2RUMwRjdFRjgiLCJpYXQiOjE3ODUyNTE3MjEsInNjb3BlIjpbInNrb3J1YmFfaWRlbnRpdHlfYWRtaW5fYXBpIl0sImFtciI6WyJwd2QiXX0.OOcM46xQEkZP1237GDdm49qN8lntUQ19vqaOocUaDpCcK8vA2e_QqOgim18CXLIjugNRFDRnailnn-lHMRTJus992SWrDwK7KB8-tqNnD7zAZDfmkBVP4nbb37CSd5e_NwYFIH01LJ_zjVLggNJkxZ5b05X8DwUhqKh9og3_JWbv88i6-TugVoALqo0VUCRW5Gy2gQkEF7pMBpGKIpz4m0DRwU8o4O1wBNspC89RsgBMrMyQY2eV620vMR9WsVfmAjrLdlnIWhb1lUnWmcSOJ11CyI9QZKncxmbrxRPg1lhVGQQG48vqADgK3VGF3qAuyjjTWhltDC3obxI6eDHRvw`;
-
-// Hierarchical Permission Tree Architecture (Rễ cây Phân quyền Cấp bậc UI)
-export const UI_PERMISSION_TREE: PermissionTreeNode[] = [
-  {
-    key: 'mod_sales',
-    title: 'Quản lý Bán hàng & POS (Sales & POS)',
-    type: 'module',
-    code: 'mod_sales',
-    description: 'Phân hệ xử lý đơn hàng, kho sản phẩm, khách hàng & khuyến mãi',
-    children: [
-      {
-        key: 'menu_sales_orders',
-        title: 'Đơn hàng & POS (/sales/orders)',
-        type: 'menu',
-        code: 'menu_sales_orders',
-        path: '/sales/orders',
-        children: [
-          {
-            key: 'ui_orders_filter',
-            title: 'Khung Tìm kiếm & Bộ lọc Đơn hàng',
-            type: 'ui_section',
-            code: 'ui_orders_filter',
-            children: [
-              { key: 'btn_orders_search', title: 'Nút Tìm kiếm đơn hàng', type: 'action', code: 'sales.orders.btn_search' },
-              { key: 'btn_orders_reset', title: 'Nút Xóa bộ lọc tìm kiếm', type: 'action', code: 'sales.orders.btn_reset' }
-            ]
-          },
-          {
-            key: 'ui_orders_table',
-            title: 'Bảng Danh sách Đơn hàng & Thao tác',
-            type: 'ui_section',
-            code: 'ui_orders_table',
-            children: [
-              { key: 'btn_orders_create', title: 'Nút Tạo đơn hàng mới (POS)', type: 'action', code: 'sales.orders.btn_create' },
-              { key: 'btn_orders_cancel', title: 'Nút Hủy đơn hàng (Cancel Order)', type: 'action', code: 'sales.orders.btn_cancel' },
-              { key: 'btn_orders_export', title: 'Nút Xuất file Excel báo cáo đơn', type: 'action', code: 'sales.orders.btn_export' }
-            ]
-          },
-          {
-            key: 'ui_orders_modal_print',
-            title: 'Modal In Hóa đơn VAT (VAT Invoice Modal)',
-            type: 'ui_section',
-            code: 'ui_orders_modal_print',
-            children: [
-              { key: 'btn_orders_print', title: 'Nút In Hóa đơn VAT & Xem trước', type: 'action', code: 'sales.orders.btn_print' }
-            ]
-          }
-        ]
-      },
-      {
-        key: 'menu_sales_products',
-        title: 'Sản phẩm & Tồn kho (/sales/products)',
-        type: 'menu',
-        code: 'menu_sales_products',
-        path: '/sales/products',
-        children: [
-          {
-            key: 'ui_products_table',
-            title: 'Bảng Quản lý Danh mục Sản phẩm',
-            type: 'ui_section',
-            code: 'ui_products_table',
-            children: [
-              { key: 'btn_products_create', title: 'Nút Thêm sản phẩm mới', type: 'action', code: 'sales.products.btn_create' },
-              { key: 'btn_products_edit', title: 'Nút Sửa thông tin sản phẩm', type: 'action', code: 'sales.products.btn_edit' },
-              { key: 'btn_products_delete', title: 'Nút Xóa sản phẩm', type: 'action', code: 'sales.products.btn_delete' }
-            ]
-          }
-        ]
-      },
-      {
-        key: 'menu_sales_customers',
-        title: 'Quản lý Khách hàng (/sales/customers)',
-        type: 'menu',
-        code: 'menu_sales_customers',
-        path: '/sales/customers',
-        children: [
-          {
-            key: 'ui_customers_table',
-            title: 'Bảng Khách hàng & Điểm tích lũy',
-            type: 'ui_section',
-            code: 'ui_customers_table',
-            children: [
-              { key: 'btn_customers_create', title: 'Nút Thêm khách hàng mới', type: 'action', code: 'sales.customers.btn_create' },
-              { key: 'btn_customers_export', title: 'Nút Xuất danh sách khách hàng', type: 'action', code: 'sales.customers.btn_export' }
-            ]
-          }
-        ]
-      },
-      {
-        key: 'menu_sales_promotions',
-        title: 'Chương trình Khuyến mãi (/sales/promotions)',
-        type: 'menu',
-        code: 'menu_sales_promotions',
-        path: '/sales/promotions',
-        children: [
-          {
-            key: 'ui_promotions_table',
-            title: 'Bảng Mã giảm giá & Ưu đãi',
-            type: 'ui_section',
-            code: 'ui_promotions_table',
-            children: [
-              { key: 'btn_promotions_create', title: 'Nút Tạo chương trình khuyến mãi', type: 'action', code: 'sales.promotions.btn_create' }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    key: 'mod_system',
-    title: 'Quản lý Hệ thống (System Administration)',
-    type: 'module',
-    code: 'mod_system',
-    description: 'Cấu hình phân quyền RBAC, Audit logs, VAT & Biểu mẫu',
-    children: [
-      {
-        key: 'menu_system_rbac',
-        title: 'Phân quyền & Vai trò RBAC (/system/rbac)',
-        type: 'menu',
-        code: 'menu_system_rbac',
-        path: '/system/rbac',
-        children: [
-          {
-            key: 'ui_rbac_tree',
-            title: 'Cây Phân quyền UI & Ma trận Vai trò',
-            type: 'ui_section',
-            code: 'ui_rbac_tree',
-            children: [
-              { key: 'btn_rbac_create_role', title: 'Nút Tạo Vai trò / Chức danh mới', type: 'action', code: 'system.rbac.btn_create_role' },
-              { key: 'btn_rbac_save', title: 'Nút Lưu Cấu hình Phân quyền Cây UI', type: 'action', code: 'system.rbac.btn_save' }
-            ]
-          }
-        ]
-      },
-      {
-        key: 'menu_system_vat',
-        title: 'Cấu hình UI VAT (/system/vat-config)',
-        type: 'menu',
-        code: 'menu_system_vat',
-        path: '/system/vat-config',
-        children: [
-          {
-            key: 'ui_vat_form',
-            title: 'Biểu mẫu Thiết lập Thuế VAT & Hóa đơn',
-            type: 'ui_section',
-            code: 'ui_vat_form',
-            children: [
-              { key: 'btn_vat_save', title: 'Nút Lưu Cấu hình VAT Hệ thống', type: 'action', code: 'system.vat.btn_save' }
-            ]
-          }
-        ]
-      },
-      {
-        key: 'menu_system_audit',
-        title: 'Nhật ký Audit Logs (/system/audit-logs)',
-        type: 'menu',
-        code: 'menu_system_audit',
-        path: '/system/audit-logs',
-        children: [
-          {
-            key: 'ui_audit_table',
-            title: 'Bảng Nhật ký Lịch sử Thao tác',
-            type: 'ui_section',
-            code: 'ui_audit_table',
-            children: [
-              { key: 'btn_audit_export', title: 'Nút Xuất file Excel Audit Logs', type: 'action', code: 'system.audit.btn_export' },
-              { key: 'btn_audit_delete', title: 'Nút Xóa Lịch sử Log (Nguy hiểm)', type: 'action', code: 'system.audit.btn_delete' }
-            ]
-          }
-        ]
-      },
-      {
-        key: 'menu_system_forms',
-        title: 'Biểu mẫu Đăng ký VAT (/system/forms)',
-        type: 'menu',
-        code: 'menu_system_forms',
-        path: '/system/forms',
-        children: [
-          {
-            key: 'ui_forms_table',
-            title: 'Danh sách Mẫu Biểu mẫu Doanh nghiệp',
-            type: 'ui_section',
-            code: 'ui_forms_table',
-            children: [
-              { key: 'btn_forms_export', title: 'Nút Tải / Xuất Mẫu Biểu mẫu', type: 'action', code: 'system.forms.btn_export' }
-            ]
-          }
-        ]
-      }
-    ]
-  }
-];
 
 export const PRESET_USERS: UserProfile[] = [
   {
@@ -269,7 +105,7 @@ export const PRESET_USERS: UserProfile[] = [
       'system.forms.btn_export'
     ],
     avatarBg: '#7c3aed',
-    description: 'Quyền Quản lý Cửa hàng: Xem & tạo đơn, Hủy đơn, In hóa đơn, Xuất Excel. Bị KHÓA 403 các trang RBAC & Audit Logs.',
+    description: 'Quyền Quản lý Cửa hàng: Xem & tạo đơn, Hủy đơn, In hóa đơn, Xuất Excel. Bị KHÓA 403 các trang  & Audit Logs.',
     jwtToken: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiVHLDsyBuIFbEg24gSG/DoG5nIiwicm9sZSI6WyJTVE9SRV9NQU5BR0VSIl0sImVtYWlsIjoiaG9hbmcudHZAYml0aXNncm91cC52biIsImlhdCI6MTc4NTI1MTcyMX0.signature`
   },
   {
@@ -333,27 +169,15 @@ export const PRESET_USERS: UserProfile[] = [
 ];
 
 export function normalizePermissionKey(key: string): string {
-  const map: Record<string, string> = {
-    'btn_cancel_order': 'sales.orders.btn_cancel',
-    'btn_print_invoice': 'sales.orders.btn_print',
-    'btn_export_excel': 'sales.orders.btn_export',
-    'btn_create_order': 'sales.orders.btn_create',
-    'btn_edit_product': 'sales.products.btn_edit',
-    'btn_delete_audit': 'system.audit.btn_delete',
-    'btn_vat_config': 'system.vat.btn_save',
-    'btn_manage_rbac': 'system.rbac.btn_save'
-  };
-  return map[key] || key;
+  return accessControlService.normalizePermissionKey(key);
 }
 
-import { rbacService } from '../services/rbacService';
-
 export function getStoredTree(): PermissionTreeNode[] {
-  return rbacService.getPermissionTree();
+  return accessControlService.getPermissionTree();
 }
 
 export function saveStoredTree(tree: PermissionTreeNode[]): void {
-  rbacService.savePermissionTree(tree);
+  accessControlService.savePermissionTree(tree);
 }
 
 export interface StoredRole {
@@ -364,16 +188,62 @@ export interface StoredRole {
   usersCount: number;
   allowedUrls: string[];
   buttonPermissions: string[];
+  functionCodes: string[];
   status: 'active' | 'inactive';
   isSystemRole?: boolean;
 }
 
 export function getStoredRoles(): StoredRole[] {
-  return rbacService.getRoles();
+  return accessControlService.getRoles();
 }
 
 export function saveStoredRoles(roles: StoredRole[]): void {
-  rbacService.saveRoles(roles);
+  accessControlService.saveRoles(roles);
+}
+
+export function getStoredFunctionTree(): FunctionTreeNode[] {
+  const cached = accessControlService.getCachedMeAuthorization();
+  return ((cached?.functionTree?.length ? cached.functionTree : accessControlService.getFunctionTree()) || []) as FunctionTreeNode[];
+}
+
+export function getStoredFunctionCodes(userRoles?: string[] | string, explicitCodes?: string[]): string[] {
+  if (Array.isArray(explicitCodes) && explicitCodes.length > 0) return explicitCodes;
+  const cached = accessControlService.getCachedMeAuthorization();
+  if (cached?.functionCodes?.length) return cached.functionCodes;
+  return accessControlService.buildSeedMeAuthorization(userRoles).functionCodes;
+}
+
+export function hasFunctionPermission(
+  functionCode: string,
+  userRoles?: string[] | string,
+  explicitCodes?: string[]
+): boolean {
+  if (isAccessControlBypassEnabled()) return true;
+  const code = normalizePermissionKey(functionCode);
+  const codes = getStoredFunctionCodes(userRoles, explicitCodes).map(normalizePermissionKey);
+  if (codes.includes('*')) return true;
+  return codes.includes(code);
+}
+
+export function getLocalizedFunctionTitle(
+  node: Pick<FunctionTreeNode, 'functionCode' | 'functionNameKey' | 'titleKey' | 'titleName'> | Pick<PermissionTreeNode, 'code' | 'title' | 'titleName'>,
+  language: string = 'vi'
+): string {
+  const lang = String(language || 'vi').split('-')[0].toLowerCase();
+  const titleName = (node as any).titleName as LocalizedTitleName | undefined;
+  const explicitTitle = (node as any).title as string | undefined;
+  const code = (node as any).functionCode || (node as any).code || '';
+  const key = (node as any).functionNameKey || (node as any).titleKey || '';
+
+  return titleName?.[lang]
+    || titleName?.vi
+    || titleName?.en
+    || explicitTitle
+    || String(key || code)
+      .replace(/^accessControl\./, '')
+      .replace(/[._-]+/g, ' ')
+      .replace(/\b\w/g, char => char.toUpperCase())
+    || String(code);
 }
 
 export function deriveAllowedUrlsFromCheckedKeys(checkedKeys: (string | number | React.Key)[], treeNodes?: PermissionTreeNode[]): string[] {
@@ -428,9 +298,7 @@ export function isAdminUser(userRoles?: string[] | string): boolean {
   const rolesArray = Array.isArray(userRoles) ? userRoles : [userRoles];
   return rolesArray.some(r => 
     r === 'SkorubaIdentityAdminAdministrator' || 
-    r === 'IdentityBitisAdminAdministrator' || 
-    r === 'ADMIN' || 
-    r === 'admin'
+    r === 'IdentityBitisAdminAdministrator'
   );
 }
 
@@ -445,7 +313,7 @@ export function matchUrlPattern(pattern: string, targetPath: string): boolean {
 
   if (cleanPattern === cleanPath) return true;
 
-  // CRITICAL SECURITY FIX: '/' MUST ONLY match root home ('/' or ''), NEVER sub-routes like '/system/rbac'
+  // CRITICAL SECURITY FIX: '/' MUST ONLY match root home ('/' or ''), NEVER sub-routes like '/system/access-control'
   if (cleanPattern === '/') {
     return cleanPath === '/' || cleanPath === '';
   }
@@ -465,8 +333,49 @@ export function matchUrlPattern(pattern: string, targetPath: string): boolean {
 }
 
 export function canAccessUrl(allowedUrls: string[] | undefined, targetPath: string, userRoles?: string[] | string): boolean {
-  if (isRbacBypassEnabled()) return true;
-  if (isAdminUser(userRoles)) return true;
+  if (isAccessControlBypassEnabled()) return true;
+
+  const cleanPath = String(targetPath || '').split('?')[0].split('#')[0] || '/';
+  if (cleanPath.startsWith('/demo/')) return true;
+  const functionCode = accessControlService.resolveFunctionCodeByUrl(cleanPath);
+  if (functionCode) {
+    // Check if the user has permission for this exact function code
+    // OR any descendant function code (child, grandchild, etc.)
+    // This enables hierarchical permission: granting SALES_ORDERS_VIEW grants access to /sales/orders
+    if (hasFunctionPermission(functionCode, userRoles)) return true;
+    
+    // Also check if any descendant permission is granted
+    const tree = accessControlService.getFunctionTree();
+    const findNode = (nodes: FunctionNodeDto[], code: string): FunctionNodeDto | null => {
+      for (const node of nodes) {
+        if (node.functionCode === code) return node;
+        if (node.children) {
+          const found = findNode(node.children, code);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const node = findNode(tree, functionCode);
+    if (node) {
+      const collectDescendantCodes = (n: FunctionNodeDto, codes: string[]) => {
+        if (n.children) {
+          n.children.forEach(child => {
+            codes.push(child.functionCode);
+            collectDescendantCodes(child, codes);
+          });
+        }
+      };
+      const descendantCodes: string[] = [];
+      collectDescendantCodes(node, descendantCodes);
+      const userCodes = getStoredFunctionCodes(userRoles).map(normalizePermissionKey);
+      if (userCodes.includes('*')) return true;
+      for (const dc of descendantCodes) {
+        if (userCodes.includes(normalizePermissionKey(dc))) return true;
+      }
+    }
+    return false;
+  }
 
   // Resolve allowedUrls from stored roles in real-time
   const rolesList = getStoredRoles();
@@ -486,31 +395,15 @@ export function canAccessUrl(allowedUrls: string[] | undefined, targetPath: stri
   return effectiveUrls.some(pattern => matchUrlPattern(pattern, targetPath));
 }
 
-// Map alias legacy keys to new tree codes for seamless backwards compatibility
-const PERMISSION_ALIASES: Record<string, string[]> = {
-  'sales.orders.btn_cancel': ['btn_cancel_order'],
-  'btn_cancel_order': ['sales.orders.btn_cancel'],
-  'sales.orders.btn_print': ['btn_print_invoice'],
-  'btn_print_invoice': ['sales.orders.btn_print'],
-  'sales.orders.btn_export': ['btn_export_excel'],
-  'btn_export_excel': ['sales.orders.btn_export', 'system.audit.btn_export'],
-  'sales.orders.btn_create': ['btn_create_order'],
-  'btn_create_order': ['sales.orders.btn_create'],
-  'system.audit.btn_delete': ['btn_delete_audit'],
-  'btn_delete_audit': ['system.audit.btn_delete'],
-  'system.vat.btn_save': ['btn_vat_config'],
-  'btn_vat_config': ['system.vat.btn_save'],
-  'system.rbac.btn_save': ['btn_manage_rbac'],
-  'btn_manage_rbac': ['system.rbac.btn_save'],
-};
-
 export function hasButtonPermission(
   buttonPermissions: string[] | undefined, 
   buttonCode: string, 
   userRoles?: string[] | string
 ): boolean {
-  if (isRbacBypassEnabled()) return true;
-  if (isAdminUser(userRoles)) return true;
+  if (isAccessControlBypassEnabled()) return true;
+
+  const functionCode = accessControlService.resolveFunctionCodeByLegacyButton(buttonCode) || buttonCode;
+  if (hasFunctionPermission(functionCode, userRoles)) return true;
 
   // Dynamically inspect live stored roles from localStorage
   const rolesList = getStoredRoles();
@@ -521,7 +414,7 @@ export function hasButtonPermission(
     for (const r of matchingRoles) {
       if (r.buttonPermissions.includes('*')) return true;
       if (r.buttonPermissions.includes(buttonCode)) return true;
-      const aliases = PERMISSION_ALIASES[buttonCode];
+      const aliases = accessControlService.getPermissionAliases(buttonCode);
       if (aliases && aliases.some(alias => r.buttonPermissions.includes(alias))) return true;
     }
     return false;
@@ -531,7 +424,7 @@ export function hasButtonPermission(
   if (buttonPermissions) {
     if (buttonPermissions.includes('*')) return true;
     if (buttonPermissions.includes(buttonCode)) return true;
-    const aliases = PERMISSION_ALIASES[buttonCode];
+    const aliases = accessControlService.getPermissionAliases(buttonCode);
     if (aliases && aliases.some(alias => buttonPermissions.includes(alias))) return true;
   }
 

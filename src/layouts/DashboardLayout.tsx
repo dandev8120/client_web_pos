@@ -41,7 +41,7 @@ import { Breadcrumb, Drawer, Radio, Tooltip, Tag } from 'antd';
 import TopLoadingBar from '../components/TopLoadingBar';
 import ErrorBoundary from '../components/ErrorBoundary';
 import DataSectionSkeleton from '../components/DataSectionSkeleton';
-import { canAccessUrl } from '../utils/rbacPresets';
+import { canAccessUrl } from '../utils/accessControlPresets';
 import { Error403 } from '../pages/error/ErrorPages';
 import appMetadata from '../../metadata.json';
 import { APP_VERSION } from '../generated/version';
@@ -187,32 +187,33 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     },
     { 
       key: 'level-demo', 
+      requiresPermission: false,
       icon: <FolderOpenOutlined />, 
       label: `${t('level')} 5 Demo`,
       children: [
         { 
-          key: 'l2', label: `${t('level')} 2`,
+          key: 'l2', requiresPermission: false, label: `${t('level')} 2`,
           children: [
             { 
-              key: 'l3', label: `${t('level')} 3`,
+              key: 'l3', requiresPermission: false, label: `${t('level')} 3`,
               children: [
                 { 
-                  key: 'l4', label: `${t('level')} 4`,
+                  key: 'l4', requiresPermission: false, label: `${t('level')} 4`,
                   children: [
                     { 
-                      key: 'l5', label: `${t('level')} 5`,
+                      key: 'l5', requiresPermission: false, label: `${t('level')} 5`,
                       children: [
-                        { key: '/demo/l5/m1', label: `${t('module')} 1` },
-                        { key: '/demo/l5/m2', label: `${t('module')} 2` },
+                        { key: '/demo/l5/m1', requiresPermission: false, label: `${t('module')} 1` },
+                        { key: '/demo/l5/m2', requiresPermission: false, label: `${t('module')} 2` },
                       ]
                     },
-                    { key: '/demo/l4/m2', label: `${t('module')} 2` },
+                    { key: '/demo/l4/m2', requiresPermission: false, label: `${t('module')} 2` },
                   ]
                 },
-                { key: '/demo/l3/m2', label: `${t('module')} 2` },
+                { key: '/demo/l3/m2', requiresPermission: false, label: `${t('module')} 2` },
               ]
             },
-            { key: '/demo/l2/m2', label: `${t('module')} 2` },
+            { key: '/demo/l2/m2', requiresPermission: false, label: `${t('module')} 2` },
           ]
         }
       ]
@@ -222,13 +223,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       icon: <DesktopOutlined />, 
       label: t('system_settings'),
       children: [
-        { key: '/system/rbac', label: 'Phân quyền & Vai trò (RBAC)', icon: <SafetyCertificateOutlined /> },
+        { key: '/system/access-control', label: 'Phân quyền & Vai trò', icon: <SafetyCertificateOutlined /> },
         { key: '/system/vat-config', label: 'Cấu hình UI VAT', icon: <SettingOutlined /> },
         { key: '/system/audit-logs', label: t('audit_logs'), icon: <HistoryOutlined /> },
         { key: '/system/forms', label: t('forms', 'Biểu mẫu'), icon: <LayoutOutlined /> },
         { key: '/system/icons', label: t('icons'), icon: <SafetyCertificateOutlined /> },
         { 
           key: 'errors', 
+          requiresPermission: false,
           label: t('error_pages'), 
           icon: <ExclamationCircleOutlined />,
           children: [
@@ -270,23 +272,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     };
 
     window.addEventListener('storage', syncUser);
-    window.addEventListener('rbac-update', syncUser);
+    window.addEventListener('access-control-update', syncUser);
     window.addEventListener('authChange', syncUser);
 
     return () => {
       window.removeEventListener('storage', syncUser);
-      window.removeEventListener('rbac-update', syncUser);
+      window.removeEventListener('access-control-update', syncUser);
       window.removeEventListener('authChange', syncUser);
     };
   }, [user]);
 
-  // RBAC Permission Filter for Menu
+  //  Permission Filter for Menu
   const userRoles = useMemo(() => {
     return activeUser?.roles || [activeUser?.role || 'user'];
   }, [activeUser]);
 
   const userAllowedUrls = activeUser?.allowedUrls;
-
   const displayUser = useMemo(() => {
     const profile = readOidcProfile();
     const roles = Array.isArray(user?.roles) ? user.roles : Array.isArray(activeUser?.roles) ? activeUser.roles : [];
@@ -324,15 +325,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     const filterTree = (items: any[]): any[] => {
       return items
         .map(item => {
-          if (item.children) {
-            const validChildren = filterTree(item.children);
+          const { requiresPermission, ...restItem } = item;
+          if (requiresPermission === false) {
+            return restItem.children ? { ...restItem, children: filterTree(restItem.children) } : restItem;
+          }
+
+          if (restItem.children) {
+            const validChildren = filterTree(restItem.children);
             if (validChildren.length > 0) {
-              return { ...item, children: validChildren };
+              return { ...restItem, children: validChildren };
             }
             return null;
           }
-          if (canAccessUrl(userAllowedUrls, item.key, userRoles)) {
-            return item;
+          if (canAccessUrl(userAllowedUrls, restItem.key, userRoles)) {
+            return restItem;
           }
           return null;
         })

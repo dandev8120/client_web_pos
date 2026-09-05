@@ -213,7 +213,7 @@ export const PromotionsSkeleton: React.FC = () => (
   </div>
 );
 
-export const RbacSkeleton: React.FC = () => (
+export const AccessControlSkeleton: React.FC = () => (
   <div className="p-4">
     <PageHeaderSkeleton actions={2} />
     <Row gutter={[16, 16]}>

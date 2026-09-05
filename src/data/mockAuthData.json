@@ -45,7 +45,7 @@
         "system.forms.btn_export"
       ],
       "avatarBg": "#7c3aed",
-      "description": "Quyền Cửa hàng trưởng: Tạo đơn, hủy đơn, in hóa đơn, xuất file. Khóa 403 trang RBAC & Audit.",
+      "description": "Quyền Cửa hàng trưởng: Tạo đơn, hủy đơn, in hóa đơn, xuất file. Khóa 403 trang phân quyền & Audit.",
       "jwtToken": "MOCK_JWT_STORE_MANAGER_TOKEN"
     },
     {

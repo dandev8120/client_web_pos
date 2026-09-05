@@ -26,7 +26,7 @@ import {
 const { Title, Text, Paragraph } = Typography;
 
 import { SmartTable } from '../components/SmartTable';
-import { hasButtonPermission } from '../utils/rbacPresets';
+import { hasButtonPermission } from '../utils/accessControlPresets';
 import { promotionService } from '../services/promotionService';
 import { productService } from '../services/productService';
 import { message } from '../services/toastMessage';
@@ -245,7 +245,7 @@ function CheckboxMultiSelect({
 export default function Promotions() {
   const { modal } = App.useApp();
 
-  // Active User session from localStorage for RBAC checks
+  // Active User session from localStorage for phân quyền checks
   const loggedUser = useMemo(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
     return saved ? JSON.parse(saved) : null;

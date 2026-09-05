@@ -2,18 +2,34 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "localhost (Edge)",
+      "name": "Run Dev Server + Debug (Edge)",
       "type": "edge",
       "request": "launch",
       "url": "https://localhost:44374",
-      "webRoot": "${workspaceFolder}"
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "pnpm dev",
+      "timeout": 60000
     },
     {
-      "name": "localhost (Chrome)",
+      "name": "Run Dev Server + Debug (Chrome)",
       "type": "chrome",
       "request": "launch",
       "url": "https://localhost:44374",
-      "webRoot": "${workspaceFolder}"
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "pnpm dev",
+      "timeout": 60000
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Dev + Debug (Edge)",
+      "configurations": ["Run Dev Server + Debug (Edge)"],
+      "stopAll": true
+    },
+    {
+      "name": "Dev + Debug (Chrome)",
+      "configurations": ["Run Dev Server + Debug (Chrome)"],
+      "stopAll": true
     }
   ]
 }

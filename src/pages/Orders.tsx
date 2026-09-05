@@ -55,7 +55,7 @@ import dayjs from 'dayjs';
 
 import PageContainer from '../components/PageContainer';
 import { SmartTable } from '../components/SmartTable';
-import { hasButtonPermission } from '../utils/rbacPresets';
+import { hasButtonPermission } from '../utils/accessControlPresets';
 import { OrderSearchPayloadRequest, OrderSearchPayloadDto } from '../dtos/OrderDto';
 import { orderService } from '../services/orderService';
 import { API_CONFIG } from '../api/config';
@@ -200,11 +200,11 @@ export const Orders: React.FC = () => {
       }
     };
     window.addEventListener('storage', handleSync);
-    window.addEventListener('rbac-update', handleSync);
+    window.addEventListener('access-control-update', handleSync);
     window.addEventListener('authChange', handleSync);
     return () => {
       window.removeEventListener('storage', handleSync);
-      window.removeEventListener('rbac-update', handleSync);
+      window.removeEventListener('access-control-update', handleSync);
       window.removeEventListener('authChange', handleSync);
     };
   }, []);
@@ -1046,11 +1046,11 @@ export const Orders: React.FC = () => {
 
         const items: MenuProps['items'] = [
           { key: 'view', label: 'Xem chi tiết', icon: <EyeOutlined className="text-blue-600" /> },
-          { key: 'print', label: 'In bill', icon: <PrinterOutlined className="text-slate-600" /> },
+          canPrintInvoice && { key: 'print', label: 'In bill', icon: <PrinterOutlined className="text-slate-600" /> },
           { key: 'download_vat', label: 'Tải hóa đơn VAT', icon: <DownloadOutlined className="text-indigo-600" /> },
           { key: 'copy_row', label: 'Copy dòng dữ liệu', icon: <CopyOutlined className="text-emerald-600" /> },
           { type: 'divider' },
-          { key: 'edit', label: 'Sửa', icon: <EditOutlined className="text-amber-600" /> },
+          canCancelOrder && { key: 'edit', label: 'Sửa', icon: <EditOutlined className="text-amber-600" /> },
           { key: 'sync_sap', label: 'Đồng bộ SAP', icon: <SyncOutlined className="text-emerald-600" /> },
           { key: 'sync_bill', label: 'Đồng bộ bill', icon: <ReloadOutlined className="text-cyan-600" /> },
           { key: 'allow_vat', label: 'Cho Xuất hóa đơn VAT', icon: <CheckCircleOutlined className="text-blue-600" /> },
@@ -1233,16 +1233,10 @@ export const Orders: React.FC = () => {
             </Button>
           </Tooltip>
 
-          {canCreateOrder ? (
+          {canCreateOrder && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsCreating(true)} className="hover:border-slate-400 whitespace-nowrap">
               {t('add_new')}
             </Button>
-          ) : (
-            <Tooltip title="Tài khoản không có Quyền Tạo Đơn mới (403 Forbidden: sales.orders.btn_create)">
-              <Button disabled type="primary" icon={<LockOutlined />}>
-                {t('add_new')} (Khóa 403)
-              </Button>
-            </Tooltip>
           )}
         </Space>
       </div>

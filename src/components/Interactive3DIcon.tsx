@@ -611,3 +611,123 @@ export const DiscountTag3D: React.FC<{ externalHover?: boolean }> = ({ externalH
   );
 };
 
+
+// 10. ShieldLock3D - For Access Control & Security Permissions (Cyan/Blue Theme)
+export const ShieldLock3D: React.FC<{ externalHover?: boolean }> = ({ externalHover }) => {
+  const [internalHover, setInternalHover] = useState(false);
+  const isHovered = externalHover ?? internalHover;
+
+  return (
+    <div 
+      className="relative w-16 h-16 cursor-pointer flex items-center justify-center select-none"
+      onMouseEnter={() => setInternalHover(true)}
+      onMouseLeave={() => setInternalHover(false)}
+    >
+      <IconRippleEffect isHovered={isHovered} color="#0284c7" />
+      <svg viewBox="0 0 100 100" className="w-full h-full filter drop-shadow-[0_8px_16px_rgba(2,132,199,0.3)] relative z-10">
+        <defs>
+          <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#38bdf8" />
+            <stop offset="50%" stopColor="#0284c7" />
+            <stop offset="100%" stopColor="#0369a1" />
+          </linearGradient>
+          <linearGradient id="lockGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#fef08a" />
+            <stop offset="50%" stopColor="#eab308" />
+            <stop offset="100%" stopColor="#ca8a04" />
+          </linearGradient>
+        </defs>
+        <ellipse cx="50" cy="82" rx="30" ry="7" fill="#cbd5e1" opacity="0.5" />
+        <motion.g
+          animate={{ y: isHovered ? -7 : 0, scale: isHovered ? 1.05 : 1 }}
+          transition={{ type: 'spring', stiffness: 220, damping: 12 }}
+        >
+          <path
+            d="M 50,18 L 78,28 C 78,54 50,75 50,75 C 50,75 22,54 22,28 Z"
+            fill="url(#shieldGrad)"
+            stroke="#ffffff"
+            strokeWidth="1.8"
+          />
+          <path
+            d="M 50,23 L 73,32 C 73,52 50,69 50,69 C 50,69 27,52 27,32 Z"
+            fill="none"
+            stroke="#bae6fd"
+            strokeWidth="1"
+            opacity={0.6}
+          />
+          <motion.g
+            animate={{ rotate: isHovered ? [0, -5, 5, 0] : 0 }}
+            transition={{ duration: 0.6, repeat: isHovered ? Infinity : 0 }}
+          >
+            <path
+              d="M 44,42 V 36 C 44,32.5 56,32.5 56,36 V 42"
+              fill="none"
+              stroke="#fef08a"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+            <rect x="40" y="42" width="20" height="15" rx="3" fill="url(#lockGoldGrad)" stroke="#ffffff" strokeWidth="0.8" />
+            <circle cx="50" cy="48" r="2" fill="#713f12" />
+            <path d="M 49,48 L 48.5,53 L 51.5,53 L 51,48 Z" fill="#713f12" />
+          </motion.g>
+        </motion.g>
+      </svg>
+    </div>
+  );
+};
+
+
+
+// 11. KeyMatrix3D - For Function Permissions Matrix & Roles (Purple/Violet Theme)
+export const KeyMatrix3D: React.FC<{ externalHover?: boolean }> = ({ externalHover }) => {
+  const [internalHover, setInternalHover] = useState(false);
+  const isHovered = externalHover ?? internalHover;
+
+  return (
+    <div 
+      className="relative w-16 h-16 cursor-pointer flex items-center justify-center select-none"
+      onMouseEnter={() => setInternalHover(true)}
+      onMouseLeave={() => setInternalHover(false)}
+    >
+      <IconRippleEffect isHovered={isHovered} color="#8b5cf6" />
+      <svg viewBox="0 0 100 100" className="w-full h-full filter drop-shadow-[0_8px_16px_rgba(139,92,246,0.3)] relative z-10">
+        <defs>
+          <linearGradient id="keyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#c084fc" />
+            <stop offset="50%" stopColor="#8b5cf6" />
+            <stop offset="100%" stopColor="#6d28d9" />
+          </linearGradient>
+          <linearGradient id="pedestalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#f3e8ff" />
+            <stop offset="100%" stopColor="#d8b4fe" />
+          </linearGradient>
+        </defs>
+
+        <ellipse cx="50" cy="82" rx="32" ry="7" fill="#cbd5e1" opacity="0.5" />
+        <polygon points="18,68 50,56 82,68 50,80" fill="url(#pedestalGrad)" stroke="#a855f7" strokeWidth="1" />
+        <circle cx="34" cy="65" r="2" fill="#9333ea" />
+        <circle cx="50" cy="62" r="2.5" fill="#7e22ce" />
+        <circle cx="66" cy="65" r="2" fill="#9333ea" />
+
+        <motion.g
+          animate={{ y: isHovered ? -9 : 0, rotate: isHovered ? -12 : 0 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 11 }}
+        >
+          <circle cx="38" cy="34" r="14" fill="none" stroke="url(#keyGrad)" strokeWidth="4.5" />
+          <circle cx="38" cy="34" r="7" fill="#faf5ff" opacity={0.9} />
+          <rect x="49" y="31.5" width="28" height="5" rx="2" fill="url(#keyGrad)" />
+          <rect x="68" y="36.5" width="3.5" height="7" rx="1.5" fill="url(#keyGrad)" />
+          <rect x="74" y="36.5" width="3" height="5" rx="1.5" fill="url(#keyGrad)" />
+          <motion.circle
+            cx="38"
+            cy="34"
+            r="3"
+            fill="#a855f7"
+            animate={{ scale: isHovered ? [1, 1.8, 1] : 1, opacity: isHovered ? [0.6, 1, 0.6] : 0.6 }}
+            transition={{ duration: 1.2, repeat: Infinity }}
+          />
+        </motion.g>
+      </svg>
+    </div>
+  );
+};

@@ -1,6 +1,6 @@
 # POS CENTER — Hệ Thống Quản Lý Bán Hàng & Điểm Bán Doanh Nghiệp (Biti's Corporation)
 
-**POS CENTER** là nền tảng quản lý điểm bán (Point of Sale), bán hàng đa kênh, quản lý sản phẩm, đơn hàng, khách hàng, chương trình khuyến mãi, phân quyền RBAC và cấu hình xuất hóa đơn điện tử VAT chuẩn quy định doanh nghiệp.
+**POS CENTER** là nền tảng quản lý điểm bán (Point of Sale), bán hàng đa kênh, quản lý sản phẩm, đơn hàng, khách hàng, chương trình khuyến mãi, phân quyền phân quyền và cấu hình xuất hóa đơn điện tử VAT chuẩn quy định doanh nghiệp.
 
 ---
 
@@ -20,12 +20,12 @@
 ### 📏 Quy Tắc Đặt Tên Chuẩn
 
 1. **`camelCase`**:
-   * **Seed Files**: `seedProducts.json`, `seedVat.json`, `seedCustomers.json`, `seedOrders.json`, `seedPromotions.json`, `seedRbac.json`, `seedAuditLogs.json`
-   * **Services**: `productService.ts`, `vatService.ts`, `customerService.ts`, `orderService.ts`, `promotionService.ts`, `rbacService.ts`
+   * **Seed Files**: `seedProducts.json`, `seedVat.json`, `seedCustomers.json`, `seedOrders.json`, `seedPromotions.json`, `seed/access-control/*.json`, `seedAuditLogs.json`
+   * **Services**: `productService.ts`, `vatService.ts`, `customerService.ts`, `orderService.ts`, `promotionService.ts`, `accessControlService.ts`
    * **API Utilities & Helpers**: `apiClient.ts`, `endpoints.ts`, `formatters.ts`
    * **Variables & Functions**: `activeUser`, `handleLogout()`, `verifyInvoice()`
 2. **`PascalCase`**:
-   * **DTOs & Entities**: `ProductDto.ts`, `VatDto.ts`, `CustomerDto.ts`, `OrderDto.ts`, `PromotionDto.ts`, `RbacDto.ts`
+   * **DTOs & Entities**: `ProductDto.ts`, `VatDto.ts`, `CustomerDto.ts`, `OrderDto.ts`, `PromotionDto.ts`, `AuthorizationDto.ts`
    * **React Components & Pages**: `DashboardLayout.tsx`, `SmartTable.tsx`, `PublicVATRegistration.tsx`, `VatConfig.tsx`
 
 ---
@@ -48,7 +48,7 @@
 │   │   ├── CustomerDto.ts        # DTO & Mapper cho Khách hàng
 │   │   ├── OrderDto.ts           # DTO & Mapper cho Đơn hàng
 │   │   ├── PromotionDto.ts       # DTO & Mapper cho Khuyến mãi
-│   │   ├── RbacDto.ts            # DTO & Mapper cho Phân quyền
+│   │   ├── AuthorizationDto.ts            # DTO & Mapper cho Phân quyền
 │   │   ├── VatDto.ts             # DTO & Mapper cho Hóa đơn VAT
 │   │   └── AuditLogDto.ts        # DTO & Mapper cho Lịch sử hệ thống
 │   │
@@ -57,7 +57,7 @@
 │   │   ├── seedCustomers.json    # Khách hàng mẫu
 │   │   ├── seedOrders.json       # Đơn hàng mẫu
 │   │   ├── seedPromotions.json   # Chương trình khuyến mãi
-│   │   ├── seedRbac.json         # Danh sách Vai trò & Quyền hạn
+│   │   ├── seed/access-control/*.json         # Danh sách Vai trò & Quyền hạn
 │   │   ├── seedVat.json          # Cấu hình hóa đơn VAT & Mẫu hóa đơn đã xuất
 │   │   └── seedAuditLogs.json    # Nhật ký hệ thống mẫu
 │   │
@@ -66,7 +66,7 @@
 │   │   ├── customerService.ts   # Xử lý nghiệp vụ Khách hàng
 │   │   ├── orderService.ts       # Xử lý nghiệp vụ Đơn hàng
 │   │   ├── promotionService.ts   # Xử lý nghiệp vụ Khuyến mãi
-│   │   ├── rbacService.ts        # Xử lý nghiệp vụ Phân quyền
+│   │   ├── accessControlService.ts        # Xử lý nghiệp vụ Phân quyền
 │   │   ├── vatService.ts         # Xử lý nghiệp vụ Xuất hóa đơn VAT
 │   │   ├── auditService.ts       # Xử lý Ghi log & Theo dõi hoạt động
 │   │   └── loggerService.ts      # Logger Service
@@ -82,7 +82,7 @@
 │   │   ├── Promotions.tsx        # Trang Quản lý Khuyến mãi
 │   │   ├── PublicVATRegistration.tsx # Trang Đăng ký xuất hóa đơn VAT công khai
 │   │   ├── VatConfig.tsx         # Trang Cấu hình mẫu hóa đơn VAT
-│   │   └── RbacManagement.tsx    # Trang Quản lý Phân quyền
+│   │   └── AccessControlManagement.tsx    # Trang Quản lý Phân quyền
 │   │
 │   ├── components/               # Các UI Component dùng chung (Reusable Components)
 │   │   ├── SmartTable.tsx        # Bảng dữ liệu thông minh hỗ trợ Lọc, Phân trang, Export

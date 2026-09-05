@@ -13,6 +13,7 @@ import { siteService } from './services/siteService';
 import { GooeyToaster, goeyToasterConfig } from './services/toastMessage';
 import { NetworkStatusNotifier } from './components/NetworkStatusNotifier';
 import { STORAGE_KEYS } from './constants/storageKeys';
+import { accessControlService } from './services/accessControlService';
 
 import { withSkeleton } from './utils/withSkeleton';
 import { DashboardSkeleton } from './components/skeletons/DashboardSkeleton';
@@ -24,7 +25,7 @@ import {
   OrdersSkeleton,
   ProductsSkeleton,
   PromotionsSkeleton,
-  RbacSkeleton,
+  AccessControlSkeleton,
   VatConfigSkeleton,
 } from './components/skeletons/PageSkeletons';
 
@@ -35,7 +36,7 @@ const Customers = withSkeleton(React.lazy(() => import('./pages/Customers')), Cu
 const Promotions = withSkeleton(React.lazy(() => import('./pages/Promotions')), PromotionsSkeleton);
 const Forms = withSkeleton(React.lazy(() => import('./pages/Forms')), FormsSkeleton);
 const Icons = withSkeleton(React.lazy(() => import('./pages/Icons')), IconsSkeleton);
-const RbacManagement = withSkeleton(React.lazy(() => import('./pages/RbacManagement')), RbacSkeleton);
+const AccessControlManagement = withSkeleton(React.lazy(() => import('./pages/AccessControlManagement')), AccessControlSkeleton);
 const AuditLogs = withSkeleton(React.lazy(() => import('./pages/AuditLogs')), AuditLogsSkeleton);
 const Login = React.lazy(() => import('./pages/Login'));
 const VatConfig = withSkeleton(React.lazy(() => import('./pages/VatConfig')), VatConfigSkeleton);
@@ -43,28 +44,9 @@ const VatConfig = withSkeleton(React.lazy(() => import('./pages/VatConfig')), Va
 const REDIRECT_LOCK_KEY = '@@WEB_POS_OIDC_REDIRECTING';
 const AUTH_RETURN_URL_KEY = '@@WEB_POS_AUTH_RETURN_URL';
 
-const DEFAULT_ALLOWED_URLS = [
-  '/',
-  '/sales/orders',
-  '/sales/products',
-  '/sales/customers',
-  '/sales/promotions',
-  '/system/rbac',
-  '/system/vat-config',
-  '/system/audit-logs',
-  '/system/forms',
-  '/system/icons',
-];
+const DEFAULT_ALLOWED_URLS: string[] = [];
 
-const DEFAULT_BUTTON_PERMISSIONS = [
-  'CREATE',
-  'UPDATE',
-  'DELETE',
-  'EXPORT',
-  'IMPORT',
-  'VIEW_FULL_PRICE',
-  'AUDIT_LOG_VIEW',
-];
+const DEFAULT_BUTTON_PERMISSIONS: string[] = [];
 
 export interface UserSession {
   name: string;
@@ -73,6 +55,7 @@ export interface UserSession {
   roles?: string[];
   allowedUrls?: string[];
   buttonPermissions?: string[];
+  functionCodes?: string[];
   token?: string;
   isExpired?: boolean;
 }
@@ -98,6 +81,7 @@ function buildUserSession(authUser: ReturnType<typeof extractOidcUser>): UserSes
     roles: authUser.roles,
     allowedUrls: DEFAULT_ALLOWED_URLS,
     buttonPermissions: DEFAULT_BUTTON_PERMISSIONS,
+    functionCodes: [],
     token: authUser.token,
     isExpired: false,
   };
@@ -165,6 +149,24 @@ function AppContent({ themeMode, setThemeMode, layout, setLayout }: any) {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
     }
   }, [auth.user?.access_token]);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated || !user) return;
+
+    accessControlService.fetchMeAuthorization(user.roles || user.role).then((accessControl) => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
+        const current = saved ? JSON.parse(saved) : user;
+        localStorage.setItem(STORAGE_KEYS.PORTAL_SESSION, JSON.stringify({
+          ...current,
+          functionCodes: accessControl.functionCodes,
+        }));
+        window.dispatchEvent(new Event('access-control-update'));
+      } catch (err) {
+        console.warn('Cannot sync authorization function tree to app session', err);
+      }
+    });
+  }, [auth.isAuthenticated, user]);
 
   useEffect(() => {
     if (!auth.isAuthenticated || !auth.user?.access_token) return;
@@ -251,7 +253,7 @@ function AppContent({ themeMode, setThemeMode, layout, setLayout }: any) {
               <Route path="promotions" element={<Promotions />} />
             </Route>
             <Route path="system">
-              <Route path="rbac" element={<RbacManagement />} />
+              <Route path="access-control" element={<AccessControlManagement />} />
               <Route path="vat-config" element={<VatConfig />} />
               <Route path="audit-logs" element={<AuditLogs />} />
               <Route path="common-forms" element={<Navigate to="/system/forms" replace />} />

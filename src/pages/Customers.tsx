@@ -22,7 +22,7 @@ import type { MenuProps } from 'antd';
 const { Title, Text } = Typography;
 
 import { SmartTable } from '../components/SmartTable';
-import { hasButtonPermission } from '../utils/rbacPresets';
+import { hasButtonPermission } from '../utils/accessControlPresets';
 import { customerService } from '../services/customerService';
 import { CustomerResponseDto, CustomerRequestDto, CustomerMapper } from '../dtos/CustomerDto';
 import { message } from '../services/toastMessage';
@@ -36,7 +36,7 @@ const Customers: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [form] = Form.useForm();
 
-  // Active User session from localStorage for RBAC checks
+  // Active User session from localStorage for phân quyền checks
   const loggedUser = useMemo(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PORTAL_SESSION);
     return saved ? JSON.parse(saved) : null;
